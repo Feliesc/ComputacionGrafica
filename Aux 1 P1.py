@@ -40,7 +40,3 @@ if __name__ == "__main__":
     display = sira.DirectRGBRasterDisplay(windowSize, imgData.shape, "P1: Esquema directo de colores")
     display.setMatrix(imgData)                  #se especifica que matriz estará en la ventana
     display.draw()                              #se dibuja
-    
-
-#P2
-#
