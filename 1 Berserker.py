@@ -33,7 +33,7 @@ def on_key(window, key, scancode, action, mods):
 
     elif key == glfw.KEY_W:
         controller.effect2 = not controller.effect2
-
+        
     else:
         print('Unknown key')
     
@@ -107,20 +107,20 @@ class SimpleShaderProgram:
         # Unbind the current VAO
         glBindVertexArray(0)
 
-class GreenShaderProgram:
+class vertexShaderProgram:
 
     def __init__(self):
 
         vertex_shader = """
             #version 130
-
             in vec3 position;
             in vec3 color;
-
             out vec3 newColor;
+
             void main()
             {
-                gl_Position = vec4(position, 1.0f);
+                vec3 newPos = vec3((position[0]*2)+0.25, (position[1]*2)-1, position[2]);
+                gl_Position = vec4(newPos, 1.0f);
                 newColor = color;
             }
             """
@@ -132,13 +132,7 @@ class GreenShaderProgram:
             out vec4 outColor;
             void main()
             {
-                float grayColor = (newColor.r + newColor.g + newColor.b) / 3.0;
-                vec3 finalColor = newColor;
-                if (newColor.g < newColor.r +0.1|| newColor.g < newColor.b +0.1)
-                {
-                    finalColor = vec3(grayColor, grayColor, grayColor);
-                }
-                outColor = vec4(finalColor, 1.0f);
+                outColor = vec4(newColor, 1.0f);
             }
             """
 
@@ -177,7 +171,7 @@ class GreenShaderProgram:
         # Unbind the current VAO
         glBindVertexArray(0)
 
-class SunsetShaderProgram:
+class nocheShaderProgram:
 
     def __init__(self):
 
@@ -202,7 +196,7 @@ class SunsetShaderProgram:
             out vec4 outColor;
             void main()
             {   
-                vec3 finalColor = vec3((newColor.r + 0.4) , newColor.g + 0.2, newColor.b * 0.1 );
+                vec3 finalColor = vec3((newColor.r * 0.2) , newColor.g * 0.1, newColor.b * 0.2 );
                 outColor = vec4(finalColor, 1.0f);
             }
             """
@@ -242,6 +236,7 @@ class SunsetShaderProgram:
         # Unbind the current VAO
         glBindVertexArray(0)
 
+#se crea el cielo
 def create_sky(y0, y1):
 
     # Defining the location and colors of each vertex  of the shape
@@ -259,6 +254,7 @@ def create_sky(y0, y1):
 
     return Shape(vertices, indices)
 
+#se crea pasto
 def create_grass(y0, y1):
 
     # Defining the location and colors of each vertex  of the shape
@@ -276,7 +272,33 @@ def create_grass(y0, y1):
 
     return Shape(vertices, indices)
 
+def create_pared(y0, y1):
 
+    # Defining the location and colors of each vertex  of the shape
+    vertices = [
+    #   positions                    colors
+        -1.0, y0, 0.0,              0.2, 0.2, 0.2,
+        1.0, y0, 0.0,               0.2, 0.2, 0.2,
+        1.0, y1*0.7, 0.0,           0.5, 0.5, 0.5,
+        1.0, y1*0.8, 0.0,           0.5, 0.5, 0.5,
+        0.3, y1*0.8, 0.0,           0.5, 0.5, 0.5,
+        0.3, y1, 0.0,               0.7, 0.7, 0.7,
+        0.0, y1, 0.0,               0.7, 0.7, 0.7,
+        0.0, y1*0.8, 0.0,           0.5, 0.5, 0.5,
+        0.0, y1*0.7, 0.0,           0.5, 0.5, 0.5,
+        -0.3, y1*0.7, 0.0,          0.5, 0.5, 0.5,
+        -0.3, y1*0.8, 0.0,          0.5, 0.5, 0.5,
+        -1.0, y1*0.8, 0.0,          0.5, 0.5, 0.5,
+        -1.0, y1*0.7, 0.0,          0.5, 0.5, 0.5]
+    
+    indices = [0,1,2,2,12,0,
+                2,3,8,8,3,7,
+                4,5,6,6,7,4,
+                9,10,11,11,12,9]
+
+    return Shape(vertices, indices)
+
+#Se crea un Enderman(personaje de Minecraft que se teletransporta)
 def create_enderman(x0, y0, width, height):
     vertices = [
         #Se hacen las piernas
@@ -330,25 +352,40 @@ def create_enderman(x0, y0, width, height):
                 28,29,30,30,31,28]
     return Shape(vertices,indices)
 
-def create_volcano(x0, y0, width, height):
-
-    # Defining the location and colors of each vertex  of the shape
+#se crea un cubito de Minecraft
+def create_cubito(x0, y0, tamanno):
     vertices = [
-    #   positions        colors
-         x0, y0, 0.0,  0.3, 0.15, 0.1,
-         x0 + width*0.8, y0, 0.0,  0.3, 0.15, 0.1,
-         x0 + width*0.4, y0 + height, 0.0,  0.6, 0.31, 0.17,
+        #se hace la parte de tierra desde frente
+        x0, y0, 0.0,                             0.65, 0.3, 0.16,
+        x0 + tamanno, y0, 0.0,                   0.65, 0.3, 0.16,
+        x0 + tamanno, y0 + tamanno*0.65, 0.0,    0.65, 0.3, 0.16,
+        x0, y0 + tamanno*0.65, 0.0,              0.65, 0.3, 0.16,
+        #se hace la parte que tiene pasto (de frente)
+        x0, y0 + tamanno*0.65, 0.0,              0.65, 0.3, 0.16,
+        x0, y0 + tamanno, 0.0,                   0.2, 0.7, 0.3,
+        x0 + tamanno, y0 + tamanno, 0.0,         0.2, 0.7, 0.3,
+        x0 + tamanno, y0 + tamanno*0.65, 0.0,    0.65, 0.3, 0.16,
+        #Ahora se hace el relieve(partiendo por la parte con tierra)
+        x0, y0, 0.0,                             0.5, 0.2, 0.2,
+        x0-tamanno*0.15, y0+tamanno*0.15, 0.0,   0.5, 0.2, 0.2,
+        x0-tamanno*0.15, y0+tamanno*0.85, 0.0,   0.5, 0.2, 0.2,
+        x0, y0+tamanno*0.70, 0.0,                0.5, 0.2, 0.2,
+        #Relieve con pasto
+        x0, y0+tamanno*0.70, 0.0,                0.5, 0.2, 0.2,
+        x0-tamanno*0.15, y0+tamanno*0.85, 0.0,   0.5, 0.2, 0.2,
+        x0-tamanno*0.15, y0+tamanno*1.15, 0.0,   0.0, 0.7, 0.5,
+        x0, y0+tamanno, 0.0,                     0.0, 0.7, 0.5,
 
-         x0 + width*0.2, y0, 0.0,  0.3, 0.15, 0.1,
-         x0 + width, y0, 0.0,  0.3, 0.15, 0.1,
-         x0 + width*0.6, y0 + height, 0.0, 0.6, 0.31, 0.17]
-
-    # Defining connections among vertices
-    # We have a triangle every 3 indices specified
-    indices = [0, 1, 2,
-                3, 4, 5]
-
-    return Shape(vertices, indices)
+        x0, y0+tamanno, 0.0,                     0.2, 0.7, 0.45,
+        x0-tamanno*0.15, y0+tamanno*1.15, 0.0,   0.2, 0.7, 0.45,
+        x0+tamanno*0.85, y0+tamanno*1.15, 0.0,   0.2, 0.7, 0.45,
+        x0+tamanno, y0+tamanno, 0.0,             0.2, 0.7, 0.45]
+    indices = [0,1,2,2,3,0,
+                4,5,6,6,7,4,
+                8,9,10,10,11,8,
+                12,13,14,14,15,12,
+                16,17,18,18,19,16]
+    return Shape(vertices,indices)
 
 if __name__ == "__main__":
 
@@ -359,7 +396,7 @@ if __name__ == "__main__":
     width = 800
     height = 800
 
-    window = glfw.create_window(width, height, "P5: Efectos con shaders", None, None)
+    window = glfw.create_window(width, height, "Bono Berserker 1", None, None)
 
     if not window:
         glfw.terminate()
@@ -372,37 +409,51 @@ if __name__ == "__main__":
     
     # Creating our shader program and telling OpenGL to use it
     simplePipeline = SimpleShaderProgram()
-    greenPipeline = GreenShaderProgram()
-    sunsetPipeline = SunsetShaderProgram()
+    vertexPipeline = vertexShaderProgram()
+    nochePipeline = nocheShaderProgram()
 
     # Creating shapes on GPU memory
     sky_shape = create_sky(y0=-0.2, y1=1.0)
     gpu_sky = GPUShape().initBuffers()
     simplePipeline.setupVAO(gpu_sky)
-    greenPipeline.setupVAO(gpu_sky)
-    sunsetPipeline.setupVAO(gpu_sky)
+    vertexPipeline.setupVAO(gpu_sky)
+    nochePipeline.setupVAO(gpu_sky)
     gpu_sky.fillBuffers(sky_shape.vertices, sky_shape.indices, GL_STATIC_DRAW)
 
     grass_shape = create_grass(y0=-1.0, y1=-0.2)
     gpu_grass = GPUShape().initBuffers()
     simplePipeline.setupVAO(gpu_grass)
-    greenPipeline.setupVAO(gpu_grass)
-    sunsetPipeline.setupVAO(gpu_grass)
+    vertexPipeline.setupVAO(gpu_grass)
+    nochePipeline.setupVAO(gpu_grass)
     gpu_grass.fillBuffers(grass_shape.vertices, grass_shape.indices, GL_STATIC_DRAW)
+
+    pared_shape = create_pared(y0=-0.2, y1=0.45)
+    gpu_pared = GPUShape().initBuffers()
+    simplePipeline.setupVAO(gpu_pared)
+    vertexPipeline.setupVAO(gpu_pared)
+    nochePipeline.setupVAO(gpu_pared)
+    gpu_pared.fillBuffers(pared_shape.vertices, pared_shape.indices, GL_STATIC_DRAW)
 
     enderman_shape = create_enderman(x0=-0.3, y0=-0.22, width=0.2, height=0.9)
     gpu_enderman = GPUShape().initBuffers()
     simplePipeline.setupVAO(gpu_enderman)
-    greenPipeline.setupVAO(gpu_enderman)
-    sunsetPipeline.setupVAO(gpu_enderman)
+    vertexPipeline.setupVAO(gpu_enderman)
+    nochePipeline.setupVAO(gpu_enderman)
     gpu_enderman.fillBuffers(enderman_shape.vertices, enderman_shape.indices, GL_STATIC_DRAW)
 
-    volcano_shape = create_volcano(x0=0.1, y0=-0.22, width=0.6, height=0.4)
-    gpu_volcano = GPUShape().initBuffers()
-    simplePipeline.setupVAO(gpu_volcano)
-    greenPipeline.setupVAO(gpu_volcano)
-    sunsetPipeline.setupVAO(gpu_volcano)
-    gpu_volcano.fillBuffers(volcano_shape.vertices, volcano_shape.indices, GL_STATIC_DRAW)
+    cubito_shape = create_cubito(x0=0.15, y0=-0.24, tamanno=0.25)
+    gpu_cubito = GPUShape().initBuffers()
+    simplePipeline.setupVAO(gpu_cubito)
+    vertexPipeline.setupVAO(gpu_cubito)
+    nochePipeline.setupVAO(gpu_cubito)
+    gpu_cubito.fillBuffers(cubito_shape.vertices, cubito_shape.indices, GL_STATIC_DRAW)
+
+    cubito2_shape = create_cubito(x0=0.45, y0=-0.7, tamanno=0.40)
+    gpu_cubito2 = GPUShape().initBuffers()
+    simplePipeline.setupVAO(gpu_cubito2)
+    vertexPipeline.setupVAO(gpu_cubito2)
+    nochePipeline.setupVAO(gpu_cubito2)
+    gpu_cubito2.fillBuffers(cubito2_shape.vertices, cubito2_shape.indices, GL_STATIC_DRAW)
 
 
     # Setting up the clear screen color
@@ -422,23 +473,31 @@ if __name__ == "__main__":
         glClear(GL_COLOR_BUFFER_BIT)
 
         if (controller.effect1):
-            glUseProgram(greenPipeline.shaderProgram)
-            greenPipeline.drawCall(gpu_sky)
-            greenPipeline.drawCall(gpu_grass)
-            greenPipeline.drawCall(gpu_enderman)
-            greenPipeline.drawCall(gpu_volcano)
+            glUseProgram(simplePipeline.shaderProgram)
+            simplePipeline.drawCall(gpu_sky)
+            simplePipeline.drawCall(gpu_grass)
+            simplePipeline.drawCall(gpu_pared)
+            simplePipeline.drawCall(gpu_cubito)
+            simplePipeline.drawCall(gpu_cubito2)
+            glUseProgram(vertexPipeline.shaderProgram)
+            vertexPipeline.drawCall(gpu_enderman)
+            
         elif (controller.effect2):
-            glUseProgram(sunsetPipeline.shaderProgram)
-            sunsetPipeline.drawCall(gpu_sky)
-            sunsetPipeline.drawCall(gpu_grass)
-            greenPipeline.drawCall(gpu_enderman)
-            sunsetPipeline.drawCall(gpu_volcano)
+            glUseProgram(nochePipeline.shaderProgram)
+            nochePipeline.drawCall(gpu_sky)
+            nochePipeline.drawCall(gpu_grass)
+            nochePipeline.drawCall(gpu_pared)
+            nochePipeline.drawCall(gpu_enderman)
+            nochePipeline.drawCall(gpu_cubito)
+            nochePipeline.drawCall(gpu_cubito2)
         else:
             glUseProgram(simplePipeline.shaderProgram)
             simplePipeline.drawCall(gpu_sky)
             simplePipeline.drawCall(gpu_grass)
-            greenPipeline.drawCall(gpu_enderman)
-            simplePipeline.drawCall(gpu_volcano)
+            simplePipeline.drawCall(gpu_pared)
+            vertexPipeline.drawCall(gpu_enderman)
+            simplePipeline.drawCall(gpu_cubito)
+            simplePipeline.drawCall(gpu_cubito2)
 
         # Once the render is done, buffers are swapped, showing only the complete scene.
         glfw.swap_buffers(window)
@@ -446,7 +505,10 @@ if __name__ == "__main__":
     # freeing GPU memory
     gpu_sky.clear()
     gpu_grass.clear()
+    gpu_pared.clear()
     gpu_enderman.clear()
-    gpu_volcano.clear()
+    gpu_cubito.clear()
+    gpu_cubito2.clear()
+    
 
     glfw.terminate()
