@@ -9,7 +9,6 @@ import numpy as np
 import sys
 import os.path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
 import grafica.transformations as tr
 
@@ -44,16 +43,6 @@ def on_key(window, key, scancode, action, mods):
     else:
         print('Unknown key')
 
-def drawCallL(self, gpuShape, mode=GL_LINE):
-        assert isinstance(gpuShape, GPUShape)
-
-        # Binding the VAO and executing the draw call
-        glBindVertexArray(gpuShape.vao)
-        glDrawElements(mode, gpuShape.size, GL_UNSIGNED_INT, None)
-
-        # Unbind the current VAO
-        glBindVertexArray(0)
-
 #definimos una función para crear un circulo (similar a la de basic_shapes)
 def createCircle(N,Radio,r,g,b):
     # Primer vértice en el centro
@@ -73,25 +62,38 @@ def createCircle(N,Radio,r,g,b):
     indices += [0, N, 1]
     return Shape(vertices, indices)
 
-def createCircunferencia(N,Radio):
-    vertices = []
+def createCircunferencia(N,Radio,r,g,b):
+    # Primer vértice en el centro
+    vertices = [Radio, 0, 0, r, g, b]
     indices = []
-    dtheta = 2 * math.pi / N
+    dtheta = 2 * math.pi / (N-1)
     for i in range(N):
         theta = i * dtheta
         vertices += [
             # Se le agregan vertices
             Radio * math.cos(theta), Radio * math.sin(theta), 0,
             # colores
-            1.0,1.0,1.0]
+            r, g, b]
         # Se agregan los indices
-        indices += [0, i, i+1]
-    # The final triangle connects back to the second vertex
-    indices += [0, N, 1]
+        indices += [i, i+1]
     return Shape(vertices, indices)
 
-
-
+def createTrayectoria(N,Radio):
+    # Primer vértice en el centro
+    vertices = [Radio, 0, 0, 1.0, 1.0, 1.0]
+    indices = []
+    dtheta = 2 * math.pi / (N-1)
+    for i in range(N):
+        theta = i * dtheta
+        vertices += [
+            # Se le agregan vertices
+            Radio * math.cos(theta), Radio * math.sin(theta), 0,
+            # colores
+            1.0, 1.0, 1.0]
+        # Se agregan los indices
+        indices += [i+1]
+    return Shape(vertices, indices)
+    
 if __name__ == "__main__":
 
     # Initialize glfw
@@ -112,23 +114,55 @@ if __name__ == "__main__":
     # Connecting the callback function 'on_key' to handle keyboard events
     glfw.set_key_callback(window, on_key)
 
-    # Creating our shader program and telling OpenGL to use it
+    # Creando los 2 Shader Program
+    simplePipeline = es.SimpleShaderProgram()
     pipeline = es.SimpleTransformShaderProgram()
-    glUseProgram(pipeline.shaderProgram)
 
-    # Setting up the clear screen color
-    glClearColor(0.15, 0.15, 0.15, 1.0)
+    # Se pone color negro de fondo
+    glClearColor(0.0, 0.0, 0.0, 1.0)
 
     # Creating shapes on GPU memory
-    shapeTierra = createCircle(30,0.5,0.1,1.0,0.1)
+    shapeSol = createCircle(30,0.25,1.0,1.0,0.0)
+    gpuSol = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuSol)
+    gpuSol.fillBuffers(shapeSol.vertices, shapeSol.indices, GL_STATIC_DRAW)
+    #Haciendo el contorno del Sol
+    shapeConSol = createCircunferencia(30,0.25,1.0,0.0,0.0)
+    gpuConSol = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuConSol)
+    gpuConSol.fillBuffers(shapeConSol.vertices, shapeConSol.indices, GL_STATIC_DRAW)
+
+    #Haciendo la Tierra
+    shapeTierra = createCircle(30,0.25,0.1,0.6,0.1)
     gpuTierra = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuTierra)
     gpuTierra.fillBuffers(shapeTierra.vertices, shapeTierra.indices, GL_STATIC_DRAW)
+    #Creando el Contorno
+    shapeConTierra = createCircunferencia(30,0.25,1.0,1.0,1.0)
+    gpuConTierra = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuConTierra)
+    gpuConTierra.fillBuffers(shapeConTierra.vertices, shapeConTierra.indices, GL_STATIC_DRAW)
+    #Creamos la trayectoria de la Tierra al rededor del sol
+    shapeTraTierra = createTrayectoria(200,0.73)
+    gpuTraTierra = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuTraTierra)
+    gpuTraTierra.fillBuffers(shapeTraTierra.vertices, shapeTraTierra.indices, GL_STATIC_DRAW)
+    #Creamos la trayectoria de la Luna al rededor de la Tierra
+    shapeTraLuna = createTrayectoria(50,0.5)
+    gpuTraLuna = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuTraLuna)
+    gpuTraLuna.fillBuffers(shapeTraLuna.vertices, shapeTraLuna.indices, GL_STATIC_DRAW)
 
-    shapeQuad = bs.createRainbowQuad()
-    gpuQuad = es.GPUShape().initBuffers()
-    pipeline.setupVAO(gpuQuad)
-    gpuQuad.fillBuffers(shapeQuad.vertices, shapeQuad.indices, GL_STATIC_DRAW)
+    #Haciendo la Luna
+    shapeLuna = createCircle(30,0.25,0.25,0.25,0.25)
+    gpuLuna = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuLuna)
+    gpuLuna.fillBuffers(shapeLuna.vertices, shapeLuna.indices, GL_STATIC_DRAW)
+    #Creando el Contorno
+    shapeConLuna = createCircunferencia(30,0.25,0.0,0.0,1.0)
+    gpuConLuna = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuConLuna)
+    gpuConLuna.fillBuffers(shapeConLuna.vertices, shapeConLuna.indices, GL_STATIC_DRAW)
 
     while not glfw.window_should_close(window):
         # Using GLFW to check for input events
@@ -146,53 +180,54 @@ if __name__ == "__main__":
         # Using the time as the theta parameter
         theta = glfw.get_time()
 
+        
+        #Diciendole a Open-GL que use el shader "normal"
+        glUseProgram(simplePipeline.shaderProgram)
+        #Dibujando el Sol
+        pipeline.drawCall(gpuSol)
+        #Dibujando el contorno del Sol
+        pipeline.drawCall(gpuConSol, mode=GL_LINES)
+        #Dibujando la trayectoria
+        pipeline.drawCall(gpuTraTierra, mode=GL_LINES)
+
+        #Diciendole a Open-GL que use el shader de transformaciones
+        glUseProgram(pipeline.shaderProgram)
+
         # Tierra
         tierraTransform = tr.matmul([
-            tr.translate(0.5, 0.5, 0),
             tr.rotationZ(2 * theta),
+            tr.translate(0.5, 0.5, 0),
             tr.uniformScale(0.5)
         ])
-
-        # updating the transform attribute
+        
         glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, tierraTransform)
 
         # drawing function
         pipeline.drawCall(gpuTierra)
+        pipeline.drawCall(gpuConTierra, mode=GL_LINES)
+        pipeline.drawCall(gpuTraLuna, mode=GL_LINES)
 
-        # Another instance of the triangle
-        triangleTransform2 = tr.matmul([
-            tr.translate(-0.5, 0.5, 0),
-            tr.scale(
-                0.5 + 0.2 * np.cos(1.5 * theta),
-                0.5 + 0.2 * np.sin(2 * theta),
-                0)
-        ])
-        glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, triangleTransform2)
-        pipeline.drawCall(gpuTierra)
 
-        # Quad
-        quadTransform = tr.matmul([
-            tr.translate(-0.5, -0.5, 0),
-            tr.rotationZ(-theta),
-            tr.uniformScale(0.7)
+        # Luna
+        lunaTransform = tr.matmul([
+            tr.rotationZ(2 * theta),
+            tr.translate(0.5, 0.5, 0),
+            tr.uniformScale(0.5),
+            tr.rotationZ(2 * theta),
+            tr.translate(0.35, 0.35, 0),
+            tr.uniformScale(0.5)
         ])
-        glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, quadTransform)
-        pipeline.drawCall(gpuQuad)
-
-        # Another instance of the Quad
-        quadTransform2 = tr.matmul([
-            tr.translate(0.5, -0.5, 0),
-            tr.shearing(0.3 * np.cos(theta), 0, 0, 0, 0, 0),
-            tr.uniformScale(0.7)
-        ])
-        glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, quadTransform2)
-        pipeline.drawCall(gpuQuad)
+        
+        glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, lunaTransform)
+        pipeline.drawCall(gpuLuna)
+        pipeline.drawCall(gpuConLuna, mode=GL_LINES)
 
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.
         glfw.swap_buffers(window)
 
     # freeing GPU memory
     gpuTierra.clear()
-    gpuQuad.clear()
+    gpuConTierra.clear()
+    gpuTraTierra.clear()
     
     glfw.terminate()
