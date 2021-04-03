@@ -54,7 +54,25 @@ def createCircle(N,Radio,r,g,b):
         vertices += [
             # Se le agregan vertices
             Radio * math.cos(theta), Radio * math.sin(theta), 0,
-            # colores
+            # colores (se le agrega sombra en un borde)
+            r + (0.9)*r*math.sin(theta-2.2),g+ (0.9)*g*math.sin(theta-2.2),b+ (0.9)*b*math.sin(theta-2.2)]
+        # Se agregan los indices
+        indices += [0, i, i+1]
+    # The final triangle connects back to the second vertex
+    indices += [0, N, 1]
+    return Shape(vertices, indices)
+
+def createSol(N,Radio,r,g,b):#Esta función no tiene sombras en una parte del circulo (se utiliza para el Sol, ya que no tiene sombra)
+    # Primer vértice en el centro
+    vertices = [0, 0, 0, r, g, b]
+    indices = []
+    dtheta = 2 * math.pi / N
+    for i in range(N):
+        theta = i * dtheta
+        vertices += [
+            # Se le agregan vertices
+            Radio * math.cos(theta), Radio * math.sin(theta), 0,
+            # colores (A diferencia de la anterior, no se le agregan sombras)
             r,g,b]
         # Se agregan los indices
         indices += [0, i, i+1]
@@ -122,7 +140,7 @@ if __name__ == "__main__":
     glClearColor(0.0, 0.0, 0.0, 1.0)
 
     # Creating shapes on GPU memory
-    shapeSol = createCircle(30,0.25,1.0,1.0,0.0)
+    shapeSol = createSol(30,0.25,1.0,1.0,0.0)
     gpuSol = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuSol)
     gpuSol.fillBuffers(shapeSol.vertices, shapeSol.indices, GL_STATIC_DRAW)
@@ -208,14 +226,15 @@ if __name__ == "__main__":
         pipeline.drawCall(gpuTraLuna, mode=GL_LINES)
 
 
-        # Luna
+        # Luna: Se realiza 2 veces las transfomaciones de la Tierra, para que la Luna gire al rededor del planeta.
         lunaTransform = tr.matmul([
             tr.rotationZ(2 * theta),
             tr.translate(0.5, 0.5, 0),
             tr.uniformScale(0.5),
             tr.rotationZ(2 * theta),
             tr.translate(0.35, 0.35, 0),
-            tr.uniformScale(0.5)
+            tr.uniformScale(0.5),
+            tr.rotationZ(-2 *theta)#Se hace esta rotación para que la sombra siempre dé al lado contrario del sol
         ])
         
         glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, lunaTransform)
@@ -226,8 +245,13 @@ if __name__ == "__main__":
         glfw.swap_buffers(window)
 
     # freeing GPU memory
+    gpuSol.clear()
+    gpuConSol.clear()
     gpuTierra.clear()
     gpuConTierra.clear()
     gpuTraTierra.clear()
+    gpuLuna.clear()
+    gpuConLuna.clear()
+    gpuTraLuna.clear()
     
     glfw.terminate()
