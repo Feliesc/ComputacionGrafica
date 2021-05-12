@@ -48,24 +48,58 @@ def textureSimpleSetup(imgName, sWrapMode, tWrapMode, minFilterMode, maxFilterMo
 
     return texture
 
+def textureMIPMAPSetup(imgName, sWrapMode, tWrapMode, minFilterMode, maxFilterMode):
+     # wrapMode: GL_REPEAT, GL_CLAMP_TO_EDGE
+     # filterMode: GL_LINEAR, GL_NEAREST
+    texture = glGenTextures(1)
+    glBindTexture(GL_TEXTURE_2D, texture)
+    
+    # texture wrapping params
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, sWrapMode)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, tWrapMode)
+
+    # texture filtering params
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, minFilterMode)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, maxFilterMode)
+    
+    image = Image.open(imgName)
+    img_data = np.array(image, np.uint8)
+
+    if image.mode == "RGB":
+        internalFormat = GL_RGB
+        format = GL_RGB
+    elif image.mode == "RGBA":
+        internalFormat = GL_RGBA
+        format = GL_RGBA
+    else:
+        print("Image mode not supported.")
+        raise Exception()
+
+    glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.size[0], image.size[1], 0, format, GL_UNSIGNED_BYTE, img_data)
+    glGenerateMipmap(GL_TEXTURE_2D)
+
+    return texture
 
 
-class SimpleTextureShaderProgram:
+#Se crea un shader para la textura del personaje principal (agregandole un uniform para que cambie cuando se haga de noche)
+class TextureShaderProgram:
 
     def __init__(self):
 
         vertex_shader = """
             #version 130
 
-            in vec3 position;
+            uniform mat4 transform;
+            in vec2 position;
             in vec2 texCoords;
 
             out vec2 outTexCoords;
 
             void main()
             {
-                gl_Position = vec4(position, 1.0f);
+                gl_Position = transform *vec4(position, 0, 1.0f);
                 outTexCoords = texCoords;
+
             }
             """
 
@@ -77,10 +111,12 @@ class SimpleTextureShaderProgram:
             out vec4 outColor;
 
             uniform sampler2D samplerTex;
+            uniform float color_index;
 
             void main()
             {
-                outColor = texture(samplerTex, outTexCoords);
+                vec4 color = texture(samplerTex, outTexCoords);
+                outColor = vec4(color.r*color_index, color.g*color_index, color.b*color_index, color.a);
             }
             """
 
@@ -94,13 +130,13 @@ class SimpleTextureShaderProgram:
         glBindBuffer(GL_ARRAY_BUFFER, gpuShape.vbo)
         glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuShape.ebo)
 
-        # 3d vertices + 2d texture coordinates => 3*4 + 2*4 = 20 bytes
+        # 2d vertices + 2d texture coordinates => 2*4 + 2*4 = 16 bytes
         position = glGetAttribLocation(self.shaderProgram, "position")
-        glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 20, ctypes.c_void_p(0))
+        glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 16, ctypes.c_void_p(0))
         glEnableVertexAttribArray(position)
         
         texCoords = glGetAttribLocation(self.shaderProgram, "texCoords")
-        glVertexAttribPointer(texCoords, 2, GL_FLOAT, GL_FALSE, 20, ctypes.c_void_p(12))
+        glVertexAttribPointer(texCoords, 2, GL_FLOAT, GL_FALSE, 16, ctypes.c_void_p(8))
         glEnableVertexAttribArray(texCoords)
 
         # Unbinding current vao
@@ -127,6 +163,7 @@ class SimpleTransformShaderProgram:
             #version 130
             
             uniform mat4 transform;
+            uniform float color_index;
 
             in vec3 position;
             in vec3 color;
@@ -136,7 +173,7 @@ class SimpleTransformShaderProgram:
             void main()
             {
                 gl_Position = transform * vec4(position, 1.0f);
-                newColor = color;
+                newColor = vec3(color.r * color_index, color.g * color_index, color.b * color_index);
             }
             """
 
@@ -186,77 +223,7 @@ class SimpleTransformShaderProgram:
         glBindVertexArray(0)
 
 
-class SimpleTextureTransformShaderProgram:
 
-    def __init__(self):
-
-        vertex_shader = """
-            #version 130
-
-            uniform mat4 transform;
-
-            in vec3 position;
-            in vec2 texCoords;
-
-            out vec2 outTexCoords;
-
-            void main()
-            {
-                gl_Position = transform * vec4(position, 1.0f);
-                outTexCoords = texCoords;
-            }
-            """
-
-        fragment_shader = """
-            #version 130
-
-            in vec2 outTexCoords;
-
-            out vec4 outColor;
-
-            uniform sampler2D samplerTex;
-
-            void main()
-            {
-                outColor = texture(samplerTex, outTexCoords);
-            }
-            """
-
-        # Compiling our shader program
-        self.shaderProgram = OpenGL.GL.shaders.compileProgram(
-            OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
-            OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER))
-
-
-    def setupVAO(self, gpuShape):
-
-        glBindVertexArray(gpuShape.vao)
-
-        glBindBuffer(GL_ARRAY_BUFFER, gpuShape.vbo)
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuShape.ebo)
-
-        # 3d vertices + 2d texture coordinates => 3*4 + 2*4 = 20 bytes
-        position = glGetAttribLocation(self.shaderProgram, "position")
-        glVertexAttribPointer(position, 3, GL_FLOAT, GL_FALSE, 20, ctypes.c_void_p(0))
-        glEnableVertexAttribArray(position)
-        
-        texCoords = glGetAttribLocation(self.shaderProgram, "texCoords")
-        glVertexAttribPointer(texCoords, 2, GL_FLOAT, GL_FALSE, 20, ctypes.c_void_p(3 * SIZE_IN_BYTES))
-        glEnableVertexAttribArray(texCoords)
-
-        # Unbinding current vao
-        glBindVertexArray(0)
-
-
-    def drawCall(self, gpuShape, mode=GL_TRIANGLES):
-        assert isinstance(gpuShape, GPUShape)
-
-        glBindVertexArray(gpuShape.vao)
-        glBindTexture(GL_TEXTURE_2D, gpuShape.texture)
-        glDrawElements(mode, gpuShape.size, GL_UNSIGNED_INT, None)
-
-        # Unbind the current VAO
-        glBindVertexArray(0)
 
 class AnimationShaderProgram:
 
@@ -288,6 +255,7 @@ class AnimationShaderProgram:
                 else{
                     outTexCoords = vec2(texture_index*1/8, 1);
                 }
+                
             }
             """
 
@@ -295,6 +263,7 @@ class AnimationShaderProgram:
             #version 130
 
             in vec2 outTexCoords;
+            uniform float color_index;
 
             out vec4 outColor;
 
@@ -302,7 +271,179 @@ class AnimationShaderProgram:
 
             void main()
             {
-                outColor = texture(samplerTex, outTexCoords);
+                vec4 color = texture(samplerTex, outTexCoords);
+                outColor = vec4(color.r*color_index, color.g*color_index, color.b*color_index, color.a);
+                
+            }
+            """
+
+        # Compiling our shader program
+        self.shaderProgram = OpenGL.GL.shaders.compileProgram(
+            OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
+            OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER))
+
+
+    def setupVAO(self, gpuShape):
+
+        glBindVertexArray(gpuShape.vao)
+
+        glBindBuffer(GL_ARRAY_BUFFER, gpuShape.vbo)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuShape.ebo)
+
+        # 2d vertices => 2*4 = 8 bytes
+        position = glGetAttribLocation(self.shaderProgram, "position")
+        glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(position)
+
+        # Unbinding current vao
+        glBindVertexArray(0)
+
+
+    def drawCall(self, gpuShape, mode=GL_TRIANGLES):
+        assert isinstance(gpuShape, GPUShape)
+
+        glBindVertexArray(gpuShape.vao)
+        glBindTexture(GL_TEXTURE_2D, gpuShape.texture)
+        glDrawElements(mode, gpuShape.size, GL_UNSIGNED_INT, None)
+
+        # Unbind the current VAO
+        glBindVertexArray(0)
+
+class InfectedShaderProgram:
+
+    def __init__(self):
+
+        vertex_shader = """
+            #version 130
+
+            uniform mat4 transform;
+            uniform float texture_index;
+
+            in vec2 position;
+
+            out vec2 outTexCoords;
+
+            void main()
+            {
+                gl_Position = transform * vec4(position, 0, 1.0f);
+
+                if(position.x>0 && position.y>0){
+                    outTexCoords = vec2((texture_index + 1)*1/8, 0); 
+                }
+                else if(position.x<0 && position.y>0){
+                    outTexCoords = vec2(texture_index*1/8, 0);
+                }
+                else if(position.x>0 && position.y<0){
+                    outTexCoords = vec2((texture_index + 1)*1/8, 1);
+                }
+                else{
+                    outTexCoords = vec2(texture_index*1/8, 1);
+                }
+                
+            }
+            """
+
+        fragment_shader = """
+            #version 130
+
+            in vec2 outTexCoords;
+            uniform float color_index;
+            uniform float infected_index;
+
+            out vec4 outColor;
+
+            uniform sampler2D samplerTex;
+
+            void main()
+            {
+                vec4 color = texture(samplerTex, outTexCoords);
+                outColor = vec4(color.r*color_index*infected_index, color.g*color_index, color.b*color_index*infected_index, color.a);
+                
+            }
+            """
+
+        # Compiling our shader program
+        self.shaderProgram = OpenGL.GL.shaders.compileProgram(
+            OpenGL.GL.shaders.compileShader(vertex_shader, GL_VERTEX_SHADER),
+            OpenGL.GL.shaders.compileShader(fragment_shader, GL_FRAGMENT_SHADER))
+
+
+    def setupVAO(self, gpuShape):
+
+        glBindVertexArray(gpuShape.vao)
+
+        glBindBuffer(GL_ARRAY_BUFFER, gpuShape.vbo)
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, gpuShape.ebo)
+
+        # 2d vertices => 2*4 = 8 bytes
+        position = glGetAttribLocation(self.shaderProgram, "position")
+        glVertexAttribPointer(position, 2, GL_FLOAT, GL_FALSE, 8, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(position)
+
+        # Unbinding current vao
+        glBindVertexArray(0)
+
+
+    def drawCall(self, gpuShape, mode=GL_TRIANGLES):
+        assert isinstance(gpuShape, GPUShape)
+
+        glBindVertexArray(gpuShape.vao)
+        glBindTexture(GL_TEXTURE_2D, gpuShape.texture)
+        glDrawElements(mode, gpuShape.size, GL_UNSIGNED_INT, None)
+
+        # Unbind the current VAO
+        glBindVertexArray(0)
+
+class HinataShaderProgram:
+
+    def __init__(self):
+
+        vertex_shader = """
+            #version 130
+
+            uniform mat4 transform;
+            uniform float texture_indexX;
+            uniform float texture_indexY;
+
+            in vec2 position;
+
+            out vec2 outTexCoords;
+
+            void main()
+            {
+                gl_Position = transform * vec4(position, 0, 1.0f);
+
+                if(position.x>0 && position.y>0){
+                    outTexCoords = vec2((texture_indexX + 1)*1/4, texture_indexY*1/5); 
+                }
+                else if(position.x<0 && position.y>0){
+                    outTexCoords = vec2(texture_indexX*1/4, texture_indexY*1/5);
+                }
+                else if(position.x>0 && position.y<0){
+                    outTexCoords = vec2((texture_indexX + 1)*1/4, (texture_indexY + 1)*1/5);
+                }
+                else{
+                    outTexCoords = vec2(texture_indexX*1/4, (texture_indexY + 1)*1/5);
+                }
+                
+            }
+            """
+
+        fragment_shader = """
+            #version 130
+
+            in vec2 outTexCoords;
+            uniform float color_index;
+
+            out vec4 outColor;
+
+            uniform sampler2D samplerTex;
+
+            void main()
+            {
+                vec4 color = texture(samplerTex, outTexCoords);
+                outColor = vec4(color.r*color_index, color.g*color_index, color.b*color_index, color.a);
+                
             }
             """
 
