@@ -4,7 +4,6 @@
 import glfw
 import copy
 from OpenGL.GL import *
-import OpenGL.GL.shaders
 import numpy as np
 import sys
 import os.path
@@ -15,6 +14,7 @@ import grafica.easy_shaders as es
 import grafica.lighting_shaders as ls
 from grafica.assets_path import getAssetPath
 from Extras import *
+import grafica.scene_graph as sg
 
 __author__ = "Daniel Calderon"
 __license__ = "MIT"
@@ -126,7 +126,7 @@ if __name__ == "__main__":
     width = 600
     height = 600
 
-    window = glfw.create_window(width, height, "Lighting + Textures demo", None, None)
+    window = glfw.create_window(width, height, "P3-2 Control 1 - Felipe Escárate Fernández", None, None)
 
     if not window:
         glfw.terminate()
@@ -147,7 +147,7 @@ if __name__ == "__main__":
     colorPipeline = es.SimpleModelViewProjectionShaderProgram()
 
     # Setting up the clear screen color
-    glClearColor(0.85, 0.85, 0.85, 1.0)
+    glClearColor(197/255, 174/255, 105/255, 0.0)
 
     # As we work in 3D, we need to check which part is in front,
     # and which one is at the back
@@ -171,7 +171,7 @@ if __name__ == "__main__":
     gpuDice.texture = es.textureSimpleSetup(
         getAssetPath("dice.jpg"), GL_REPEAT, GL_REPEAT, GL_LINEAR, GL_LINEAR)
     
-    floor = create_floor(textureShaderProgram)
+    floor = create_floor(textureGouraudPipeline)
 
     # Since the only difference between both dices is the texture, we can just use the same
     # GPU data, but with another texture.
@@ -187,6 +187,32 @@ if __name__ == "__main__":
 
     t0 = glfw.get_time()
     camera_theta = np.pi/4
+    
+    X = 0.75
+    Z = 5
+    Y = 2
+    #Contadores para el Dado blanco
+    theta = 0
+    rapidezRotacionX = np.random.randint(4) + 1 # puede ser 1, 2, 3, o 4
+    phi = 0
+    rapidezRotacionY = -1*(np.random.randint(4) + 1) # puede ser 1, 2, 3, o 4
+    #contadores para el Dado Azul
+    thetaBlue = 0
+    rapidezRotacionXBlue = np.random.randint(4) + 1 # puede ser 1, 2, 3, o 4
+    phiBlue = 0
+    rapidezRotacionYBlue = np.random.randint(4) + 1 # puede ser 1, 2, 3, o 4
+
+
+    def cambioTheta(rapidezRotacion,theta):
+        if theta< np.pi/2 and rapidezRotacion==1:
+                theta += rapidezRotacion * 0.002
+        elif theta< np.pi and rapidezRotacion==2:
+            theta += rapidezRotacion * 0.002
+        elif theta< np.pi*3/2 and rapidezRotacion==3:
+            theta += rapidezRotacion * 0.002
+        elif theta< np.pi*2 and rapidezRotacion==4:
+            theta += rapidezRotacion * 0.002
+        return theta
 
     while not glfw.window_should_close(window):
 
@@ -198,6 +224,18 @@ if __name__ == "__main__":
         dt = t1 - t0
         t0 = t1
 
+        #Cambio en Z (como caen los dados)
+        if Z>0.5:
+            Z -=6*dt
+            Y -=4*dt
+            X+=0.5*dt
+            #cambio de theta (como rotan los dados en X)
+            theta = cambioTheta(rapidezRotacionX,theta)
+            thetaBlue = cambioTheta(rapidezRotacionXBlue,thetaBlue)
+            #cambio de phi (como rotan los dados en Y)
+            phi = cambioTheta(rapidezRotacionY,phi)
+            phiBlue = cambioTheta(rapidezRotacionYBlue,phiBlue)
+
         if (glfw.get_key(window, glfw.KEY_LEFT) == glfw.PRESS):
             camera_theta -= 2 * dt
 
@@ -206,10 +244,10 @@ if __name__ == "__main__":
             
         projection = tr.perspective(45, float(width)/float(height), 0.1, 100)
 
-        camX = 10 * np.sin(camera_theta)
-        camY = 10 * np.cos(camera_theta)
+        camX = 10 * np.sin(camera_theta+3/4*np.pi)
+        camY = 10 * np.cos(camera_theta+3/4*np.pi)
 
-        viewPos = np.array([camX,camY,6])
+        viewPos = np.array([camX,camY,7])
 
         view = tr.lookAt(
             viewPos,
@@ -244,23 +282,26 @@ if __name__ == "__main__":
         else:
             raise Exception()
         
+        
+        
+        
         glUseProgram(lightingPipeline.shaderProgram)
 
         # Setting all uniform shader variables
         
         # White light in all components: ambient, diffuse and specular.
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "La"), 1.0, 1.0, 1.0)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld"), 1.0, 1.0, 1.0)
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls"), 1.0, 1.0, 1.0)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "La"), 197/255, 174/255, 105/255)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ld"), 102/255, 59/255, 42/255)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ls"), 1, 1, 1)
 
         # Object is barely visible at only ambient. Bright white for diffuse and specular components.
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ka"), 0.2, 0.2, 0.2)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ka"), 0.8, 0.8, 0.8)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Kd"), 0.9, 0.9, 0.9)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "Ks"), 1.0, 1.0, 1.0)
 
         # TO DO: Explore different parameter combinations to understand their effect!
         
-        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPosition"), -5, -5, 5)
+        glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "lightPosition"), 0, 0, 5)
         glUniform3f(glGetUniformLocation(lightingPipeline.shaderProgram, "viewPosition"), viewPos[0], viewPos[1], viewPos[2])
         glUniform1ui(glGetUniformLocation(lightingPipeline.shaderProgram, "shininess"), 100)
 
@@ -272,12 +313,18 @@ if __name__ == "__main__":
         glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "view"), 1, GL_TRUE, view)
 
         # Drawing
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(0.75,0,0))
+        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.matmul([tr.translate(X,Y,Z), tr.rotationX(theta), tr.rotationY(phi)]))
         lightingPipeline.drawCall(gpuDice)
 
-        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.translate(-0.75,0,0))
+        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.matmul([tr.translate(-X,Y,Z), tr.rotationX(thetaBlue), tr.rotationY(phiBlue)]))
         lightingPipeline.drawCall(gpuDiceBlue)
+
+        glUniformMatrix4fv(glGetUniformLocation(lightingPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.scale(10,10,0))
+        lightingPipeline.drawCall(floor)
         
+        
+        
+
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.
         glfw.swap_buffers(window)
 
