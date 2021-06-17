@@ -23,16 +23,6 @@ def hermiteMatrix(P1, P2, T1, T2):
     
     return np.matmul(G, Mh)
 
-def CatmullRomMatrix(P1, P2, P3, P4):
-    
-    # Generate a matrix concatenating the columns
-    G = np.concatenate((P1, P2, P3, P4), axis=1)
-    
-    # Catmull-Rom base matrix is a constant
-    Mcr = np.array([[0, -0.5, 1, -0.5], [1, 0, -2.5, 1.5], [0, 0.5, 2, -1.5], [0, 0, -0.5, 0.5]])    
-    
-    return np.matmul(G, Mcr)
-
 
 def bezierMatrix(P0, P1, P2, P3):
     
@@ -60,94 +50,104 @@ def evalCurve(M, N):
     ts = np.linspace(0.0, 1.0, N)
     
     # The computed value in R3 for each sample will be stored here
-    curve = np.ndarray(shape=(N, 3), dtype=np.float32)
+    curve = np.ndarray(shape=(N, 3), dtype=float)
     
     for i in range(len(ts)):
         T = generateT(ts[i])
         curve[i, 0:3] = np.matmul(M, T).T
         
     return curve
-    
 
 if __name__ == "__main__":
     
     """
-    Example for Catmull Rom curve
+    Example for Hermite curve
     """
-    P00 = [1, -0.3, 2]
-    P0 = [1, 0, 2]
-    P1 = [1.1, 0.3, 2]
-    P2 = [2, 0.6, 2]
-    P3 = [1.5, 1, 1.6]
-    P4 = [1, 0.8, 1.4]
-    P5 = [1.6, 0.5, 1.2]
-    P6 = [2.8, 0.5, 1]
-    P7 = [2.5, 0, 0.8]
-    P8 = [2.1, 0.1, 0.4]
-    P9 = [2, 0.5, 0.0]
-    P10 =[2.2, 0.9, 0.0]
-    P11 =[2.5, 1, 0.0]
     
+    P1 = np.array([[3, 2, 13]]).T
+    P2 = np.array([[6, 6, 7]]).T
+    T1 = np.array([[15, 0, 1]]).T
+    T2 = np.array([[-15, 1, 0]]).T
+    
+    GMh = hermiteMatrix(P1, P2, T1, T2)
+    print(GMh)
+    
+    # Number of samples to plot
+    N = 8
+    
+    hermiteCurve = evalCurve(GMh, N)
+    
+    # Setting up the matplotlib display for 3
+    
+    """
+    Example for Bezier curve
+    """
+    
+    R0 = np.array([[6, 6, 7]]).T
+    R1 = np.array([[2, 7, 7]]).T
+    R2 = np.array([[2, 14, 1]]).T
+    R3 = np.array([[13, 13, 2]]).T
+    
+    GMb = bezierMatrix(R0, R1, R2, R3)
+    bezierCurve = evalCurve(GMb, N)
+    
+    curvaHermiteBezier = np.concatenate((hermiteCurve,bezierCurve), axis=0)
 
-    puntos = [P00,P0,P1,P2,P3,P4,P5,P6,P7,P8,P9,P10,P11]
-
-    R=0.05
+    M = 8
+    R =0.5
+    theta = 2*np.pi/M
+    CurvasHB = []
     xtongo = [1,0,0]
     ztongo = [0,0,1]
-    # Number of samples to plot 
-    N = 8
-    #cantidad de curvas que se hacen)
-    M = 8
-    theta = 2*np.pi/M
-    Splines = []
-    
+
+    ListaPuntosRio0 = []
+
     #creamos las M curvas
     for m in range(M):
         dtheta = m*theta
-        Puntos = puntos.copy()
+        Puntos = curvaHermiteBezier.copy()
         for p in range(len(Puntos)):
-            punto = Puntos[p]
-            if punto != Puntos[0] and punto != Puntos[len(Puntos)-1]:
+            punto = list(Puntos[p])
+
+            #calculamos la tangente de cada punto
+            if punto != list(Puntos[0]) and punto != list(Puntos[len(Puntos)-1]):
                 tangente = [Puntos[p+1][0]-Puntos[p-1][0], Puntos[p+1][1]-Puntos[p-1][1], Puntos[p+1][2]-Puntos[p-1][2]]
             else:
-                tangente = [0,1,0]
+                tangente = [1,0,0]
+            #usamos la tangente para obtener la normal a la curva
             normal = np.cross(ztongo,tangente)
+            #normalizamos la normal
             NormalizedNormal = normal/np.linalg.norm(normal)
 
+            #ahora buscamos el ángulo entre la normal de la curva y xtongo
             productoPunto = np.dot(xtongo, NormalizedNormal)
             if NormalizedNormal[1]>=0:
                 phi = np.arccos(productoPunto)
             else:
                 phi = -np.arccos(productoPunto)
 
+            #tediendo esto, podemos calcular el punto 
             punto[0] = punto[0] +R*np.sin(dtheta)*np.cos(phi)
             punto[1] = punto[1] +R*np.sin(dtheta)*np.sin(phi)
             punto[2] = punto[2] +R*np.cos(dtheta)
-        
-        Spline = []
-        for p in range(len(puntos)-3):
-            i = np.array([[*Puntos[p]]]).T
-            ii = np.array([[*Puntos[p+1]]]).T
-            iii = np.array([[*Puntos[p+2]]]).T
-            iv = np.array([[*Puntos[p+3]]]).T
-            GMcr = CatmullRomMatrix(i, ii, iii, iv)
-            CatmullRomcurve = evalCurve(GMcr, N)
-            Spline += [CatmullRomcurve]
-        Splines += [Spline]
-    
-    CatmullRomSplines = []
-    for Spline in Splines:
-        crSpline = np.concatenate((Spline[0],Spline[1],Spline[2],Spline[3],Spline[4],Spline[5],Spline[6],Spline[7],Spline[8],Spline[9]), axis=0)
-        CatmullRomSplines += [crSpline]
+
+            Puntos[p] =np.array([punto[0],punto[1],punto[2]])
+
+            ##############ESTO ES PARA ALGO QUE SE USA DESPUES#######################################
+            #Se guardan los puntos de las curvas con m = 5 y m = 6
+            if m==5 or m == 6:
+                ListaPuntosRio0 += [np.array(punto)]
+            #########################################################################################
             
-    
-    # Setting up the matplotlib display for 3D
+        CurvasHB += [Puntos]
+        
+
     fig = mpl.figure()
     ax = fig.gca(projection='3d')
-    for i in range(len(CatmullRomSplines)):
-        plotCurve(ax, CatmullRomSplines[i], "Catmull-Rom"+str(i), (0.1*i,0,1))
+    for i in range(len(CurvasHB)):
+        plotCurve(ax, CurvasHB[i], "s"+str(i), (0.13*i,0,1))
 
-    
+
     ax.set_xlabel('x')
     ax.set_ylabel('y')
     ax.set_zlabel('z')

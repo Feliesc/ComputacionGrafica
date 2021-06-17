@@ -3,16 +3,13 @@
 
 import glfw
 from OpenGL.GL import *
-import OpenGL.GL.shaders
 import numpy as np
-import sys, os.path
+import os.path
 
-from grafica.gpu_shape import GPUShape, SIZE_IN_BYTES
 import grafica.transformations as tr
 import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
 from shaders import *
-from PIL import Image
 
 
 def createTextureQuad():
@@ -73,14 +70,12 @@ if __name__ == "__main__":
     # Creating shapes on GPU memory
     ##################PARA LA LLUVIA#########################################################
     shapeWater = createTextureQuad()
-    gpuWater = GPUShape().initBuffers()
+    gpuWater = TexGPUShape().initBuffers()
     pipeline.setupVAO(gpuWater)
+    gpuWater.fillBuffers(shapeWater.vertices, shapeWater.indices, GL_STATIC_DRAW)
     gpuWater.texture = textureSetup(
         waterPath, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
-    gpuWater.fillBuffers(shapeWater.vertices, shapeWater.indices, GL_STATIC_DRAW)
-
-    gpuDisplacement = GPUShape().initBuffers()
-    gpuDisplacement.texture = textureSetup(
+    gpuWater.texture2 = textureSetup(
         displacementPath, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST)
 
     while not glfw.window_should_close(window):
@@ -100,32 +95,33 @@ if __name__ == "__main__":
         y = -0.5+dy/20
         #va desde 0 a 1
         texIndex = dy/20
-        #movimiento del agua en el eje x (movimiento del displacement map)
-        dx = np.sin(dt)/5+0.5
+        #deformación del agua (movimiento del displacement map)
+        deformationX = (speed/2*dt)%20/20
+        deformationY = y
 ##############################################################################################################
         # Telling OpenGL to use our shader program
         glUseProgram(pipeline.shaderProgram)
 
+        #los uniforms que se le pasan al vertex shader
         glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, tr.identity())
-        glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "posIndex"), y)
         glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "texIndex"), texIndex)
-        glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "dx"), dx)
+
+        #los uniforms que se pasan al fragment shader
+        glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "posIndex"), y)
+        glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "deformationX"), deformationX)
+        glUniform1f(glGetUniformLocation(pipeline.shaderProgram, "deformationY"), deformationY)
+        glUniform1i(glGetUniformLocation(pipeline.shaderProgram, "samplerTex"), 0)
+        glUniform1i(glGetUniformLocation(pipeline.shaderProgram, "displacement"), 1)
         
-        
+        #Drawcall
         glBindVertexArray(gpuWater.vao)
         glActiveTexture(GL_TEXTURE0)
         glBindTexture(GL_TEXTURE_2D, gpuWater.texture)
-        glUniform1i(glGetUniformLocation(pipeline.shaderProgram, "samplerTex"), 0)
         
         glActiveTexture(GL_TEXTURE1)
-        glBindTexture(GL_TEXTURE_2D, gpuDisplacement.texture)
-        glUniform1i(glGetUniformLocation(pipeline.shaderProgram, "displacement"), 1)
+        glBindTexture(GL_TEXTURE_2D, gpuWater.texture2)
         glDrawElements(GL_TRIANGLES, gpuWater.size, GL_UNSIGNED_INT, None)
         glBindVertexArray(0)
-        
-        
-
-        
         
 ##############################################################################################################
 
