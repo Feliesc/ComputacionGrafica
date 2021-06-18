@@ -1,6 +1,3 @@
-import numpy as np
-import grafica.transformations as tr
-
 class Player():
     # Clase que contiene al modelo del player
     def __init__(self, pos, radio):

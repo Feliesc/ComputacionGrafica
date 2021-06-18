@@ -452,15 +452,15 @@ class seaShaderProgram:
                 
                 // diffuse 
                 vec3 norm = normalize(normal);
-                vec3 lightDir = vec3(0,0,20);
+                vec3 lightDir = vec3(0,0,-20);
                 float diff = max(dot(norm, lightDir), 0);
-                vec3 diffuse = vec3(0.05, 0.05, 0.05) * diff;
+                vec3 diffuse = vec3(1, 1, 1) * diff;
                     
                 // specular
                 vec3 viewDir = normalize(viewPosition - vertexPos);
                 vec3 reflectDir = reflect(-lightDir, norm);  
                 float spec = pow(max(dot(viewDir, reflectDir), 0.0), shininess);
-                vec3 specular = vec3(0.05, 0.05, 0.05) * spec;
+                vec3 specular = vec3(1, 1, 1) * spec;
 
                 vertexLightColor = ambient + (diffuse + specular);
                     

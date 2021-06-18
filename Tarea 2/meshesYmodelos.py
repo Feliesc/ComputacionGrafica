@@ -4,9 +4,9 @@ import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
 import openmesh as om
 import os.path
-from shaders import *
+from shaders import textureMIPMAPSetup, TexGPUShape, GPUShape
 import obj_reader as oreader
-from curves import *
+from curves import ztongo, CurvasHB, CatmullRomSplines, CatmullRomRiverSplines
 
 #Se crea un modelo geometrico del tobogán (esta función no se utiliza, ya que se usa una malla de poligonos)
 def Tobogan(curvas,N=8,R=0.5):
@@ -17,7 +17,7 @@ def Tobogan(curvas,N=8,R=0.5):
     for curva in curvas:
         desfase = listaDesfase[len(listaDesfase)-1]
         for point in curva:
-            vertices +=[point[0], point[1], point[2],   0, np.random.rand(), np.random.rand()]
+            vertices +=[point[0], point[1], point[2],   np.random.rand(), np.random.rand(), 0]
             desfase +=1
         listaDesfase += [desfase]
     
@@ -224,8 +224,6 @@ def gpuTobogan(pipeline):
 
     gpuShape = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuShape)
-    gpuShape.texture = es.textureSimpleSetup(
-        cobblestonePath, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
     gpuShape.texture = textureMIPMAPSetup(
         cobblestonePath, GL_REPEAT, GL_REPEAT, GL_NEAREST_MIPMAP_LINEAR, GL_LINEAR)
     tobogan_mesh = ToboganMesh(CatmullRomSplines)
@@ -436,7 +434,6 @@ def createColorToroid(N, r, g, b):
 
 
 def gpuObstaculo(pipeline):
-    rubberPath = os.path.join(assetsDirectory, "paisaje.jfif")
     shapeToroid = createColorToroid(8, 0.1,0.1,0.1)
     gpuObstaculo = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuObstaculo)

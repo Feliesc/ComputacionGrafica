@@ -6,29 +6,27 @@ Recorriendo una isosuperficie
 
 import glfw
 from OpenGL.GL import *
-import OpenGL.GL.shaders
 import numpy as np
 import sys
 
 import grafica.transformations as tr
 import grafica.easy_shaders as es
-import grafica.lighting_shaders as ls
 import grafica.scene_graph as sg
 import grafica.text_renderer as tx
 import MJ as mj
 from meshesYmodelos import *
 from shaders import *
 from collision import *
+from curves import *
 
 if len(sys.argv)==3:
-    print("Se escribieron los parametros correctamente")
+    datosIngresados = True
     N = int(sys.argv[1])
     V = int(sys.argv[2])
     speed = V
     speed0= V
 else:
-    print("no se escribieron los parametros correspondientes N V")
-    print("Se utilizará la configuración por defecto: N=8; V=4")
+    datosIngresados = False
     N = 8
     V = 4
     speed = V
@@ -63,8 +61,8 @@ if __name__ == "__main__":
     if not glfw.init():
         sys.exit()
 
-    width = 600
-    height = 600
+    width = 850
+    height = 850
 
     window = glfw.create_window(width, height, "Water Slide - Felipe Escárate", None, None)
 
@@ -86,7 +84,7 @@ if __name__ == "__main__":
     textPipeline = tx.TextureTextRendererShaderProgram()
 
     # Setting up the clear screen color
-    glClearColor(0.85, 0.85, 0.85, 1.0)
+    glClearColor(0.7, 0.9, 0.9, 1.0)
 
     # As we work in 3D, we need to check which part is in front,
     # and which one is at the back
@@ -108,9 +106,10 @@ if __name__ == "__main__":
     obstaclesNode = sg.SceneGraphNode("Obstaculos")
     #ahora agregamos los obstaculos
     cargas = []
-    for posObstaculo in posicionesObstaculos:
+    for i in range(len(posicionesObstaculos)):
+        posObstaculo = posicionesObstaculos[i]
         px,py,pz = posObstaculo[0],posObstaculo[1],posObstaculo[2]
-        obsNode = sg.SceneGraphNode("obstaculo" + str(n)) #se le pone el indice al nombre del nodo ej: obstaculo5
+        obsNode = sg.SceneGraphNode("obstaculo" + str(i)) #se le pone el indice al nombre del nodo ej: obstaculo5
         obsNode.transform = tr.matmul([tr.translate(px, py, pz),tr.uniformScale(0.1),tr.rotationX(np.random.rand()*np.pi/8)])
         obsNode.childs = [gpuTire]                      #se le da como hijo la gpuShape del obstaculo
         obstaclesNode.childs += [obsNode]               #al grafo de obstaculos se le asigna como hijo ese obstaculo    
@@ -159,6 +158,15 @@ if __name__ == "__main__":
     danguloBrazo =0
     anguloAumenta = True
     while not glfw.window_should_close(window):
+        #se printea esto en el loop porque si se hace antes, al importar este archivo en el de curvas, se printea 2 veces
+        if datosIngresados == True:
+            print("Se escribieron los parametros correctamente")
+            datosIngresados = None  #se pone None para que no se vuelva a printear
+        elif datosIngresados == False:
+            print("no se escribieron los parametros correspondientes N V")
+            print("Se utilizará la configuración por defecto: N=8; V=4")
+            datosIngresados = None
+
         # Using GLFW to check for input events
         glfw.poll_events()
 
@@ -300,9 +308,13 @@ if __name__ == "__main__":
         boatNode.transform = tr.matmul([tr.translate(bx, by, bz),tr.uniformScale(0.06),tr.rotationZ(alpha)])
         #############################
 
-
-        viewPos = np.array(CameraPosition)
-        at =  np.array(BoatPosition)
+        #si se presiona V se usa la vista en primera persona
+        if (glfw.get_key(window, glfw.KEY_V) == glfw.PRESS):
+            viewPos = np.array(BoatPosition+np.array([0,0,0.15]))
+            at = at =  np.array(BoatPosition+normalizedTan)
+        else:
+            viewPos = np.array(CameraPosition)
+            at =  np.array(BoatPosition)
 
         #eye, at, up
         view = tr.lookAt(
@@ -431,30 +443,6 @@ if __name__ == "__main__":
         
         glUseProgram(seaPipeline.shaderProgram)
 
-        dy2 = (SPEED*dt/10)%20
-        #y va de -1/2 a 1/2
-        y2 = -0.5+dy2/20
-        #va desde 0 a 1
-        texIndex2 = dy2/20
-        #deformación del agua (movimiento del displacement map)
-        deformationY2 = y2
-
-        #los uniforms que se le pasan al vertex shader
-        glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "view"), 1, GL_TRUE, view)
-        glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.uniformScale(1))
-        glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "texIndex"), texIndex2)
-
-        #los uniforms que se pasan al fragment shader
-        glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "posIndex"), y2)
-        glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "deformationX"), deformationX)
-        glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "deformationY"), deformationY2)
-        glUniform1i(glGetUniformLocation(seaPipeline.shaderProgram, "samplerTex"), 1)
-        glUniform1i(glGetUniformLocation(seaPipeline.shaderProgram, "displacement"), 2)
-        
-        #Drawcall
-        seaPipeline.drawCall(gpuSea,gpuRiver)
-
         glUseProgram(gouraudPipeline.shaderProgram)
         glUniform3f(glGetUniformLocation(gouraudPipeline.shaderProgram, "La"), 1.0, 1.0, 1.0)
         glUniform3f(glGetUniformLocation(gouraudPipeline.shaderProgram, "Ld"), 1.0, 0.0, 0.0)
@@ -492,13 +480,40 @@ if __name__ == "__main__":
             glUniformMatrix4fv(glGetUniformLocation(textPipeline.shaderProgram, "transform"), 1, GL_TRUE,
                 tr.translate(-0.9, 0.6, 0))
             textPipeline.drawCall(gpuMessage)
+        
+        #lo siguiente se dibuja solo si está a punto de llegar al final del tunel
+        if i>= 100:
 
-        glUseProgram(tobogan0Pipeline.shaderProgram)
-        movTob0 = tr.matmul([tr.translate(30, 30, 0),tr.rotationZ(np.pi)])
-        glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "view"), 1, GL_TRUE, view)
-        glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
-        glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "model"), 1, GL_TRUE, movTob0)
-        tobogan0Pipeline.drawCall(gpuTobogan0)
+            glUseProgram(tobogan0Pipeline.shaderProgram)
+            movTob0 = tr.matmul([tr.translate(30, 30, 0),tr.rotationZ(np.pi)])
+            glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "view"), 1, GL_TRUE, view)
+            glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+            glUniformMatrix4fv(glGetUniformLocation(tobogan0Pipeline.shaderProgram, "model"), 1, GL_TRUE, movTob0)
+            tobogan0Pipeline.drawCall(gpuTobogan0)
+
+            dy2 = (SPEED*dt/10)%20
+            #y va de -1/2 a 1/2
+            y2 = -0.5+dy2/20
+            #va desde 0 a 1
+            texIndex2 = dy2/20
+            #deformación del agua (movimiento del displacement map)
+            deformationY2 = y2
+            glUseProgram(seaPipeline.shaderProgram)
+            #los uniforms que se le pasan al vertex shader
+            glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "view"), 1, GL_TRUE, view)
+            glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+            glUniformMatrix4fv(glGetUniformLocation(seaPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.uniformScale(1))
+            glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "texIndex"), texIndex2)
+
+            #los uniforms que se pasan al fragment shader
+            glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "posIndex"), y2)
+            glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "deformationX"), deformationX)
+            glUniform1f(glGetUniformLocation(seaPipeline.shaderProgram, "deformationY"), deformationY2)
+            glUniform1i(glGetUniformLocation(seaPipeline.shaderProgram, "samplerTex"), 1)
+            glUniform1i(glGetUniformLocation(seaPipeline.shaderProgram, "displacement"), 2)
+            
+            #Drawcall
+            seaPipeline.drawCall(gpuSea,gpuRiver)
         
         # Once the drawing is rendered, buffers are swap so an uncomplete drawing is never seen.
         glfw.swap_buffers(window)

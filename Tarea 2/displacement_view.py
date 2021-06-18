@@ -73,9 +73,9 @@ if __name__ == "__main__":
     gpuWater = TexGPUShape().initBuffers()
     pipeline.setupVAO(gpuWater)
     gpuWater.fillBuffers(shapeWater.vertices, shapeWater.indices, GL_STATIC_DRAW)
-    gpuWater.texture = textureSetup(
+    gpuWater.texture = es.textureSimpleSetup(
         waterPath, GL_CLAMP_TO_EDGE, GL_CLAMP_TO_EDGE, GL_NEAREST, GL_NEAREST)
-    gpuWater.texture2 = textureSetup(
+    gpuWater.texture2 = es.textureSimpleSetup(
         displacementPath, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST)
 
     while not glfw.window_should_close(window):
