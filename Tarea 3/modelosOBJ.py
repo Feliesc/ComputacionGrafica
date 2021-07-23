@@ -13,7 +13,7 @@ graficaDirectory = os.path.join(thisFolderPath, "grafica")
 
 def gpuTable(pipeline):
     tablePath = os.path.join(meshesDirectory, "4.obj")
-    tableTexPath = os.path.join(texturesDirectory, "texMesa4.png")
+    tableTexPath = os.path.join(texturesDirectory, "texMesa6.png")
     shapeTable = oread.readOBJ(tablePath)
 
     gpuTable = es.GPUShape().initBuffers()
