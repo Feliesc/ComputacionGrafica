@@ -120,7 +120,7 @@ def createShadowQuad():
     return bs.Shape(vertices, indices)
 
 def createGPUshadowQuad(pipeline):
-    shadowPath = os.path.join(texturesDirectory, "hinataMove2.png")
+    shadowPath = os.path.join(texturesDirectory, "sombraBola.png")
     quadShape = createShadowQuad()
     gpuQuad = es.GPUShape().initBuffers()
     pipeline.setupVAO(gpuQuad)
@@ -216,3 +216,53 @@ def textureRGBASetup(imgName, sWrapMode, tWrapMode, minFilterMode, maxFilterMode
     glTexImage2D(GL_TEXTURE_2D, 0, internalFormat, image.size[0], image.size[1], 0, format, GL_UNSIGNED_BYTE, img_data)
 
     return texture
+
+#ahora hacemos la linea de la trayectoria
+def createLineaPunteada(puntoInicio, tan, N):
+    normal = np.cross(tan,[0,0,1])
+    largo = 12  #largo de la mesa
+    dx = largo/N
+    vertices = []
+    indices = []
+    p0 = np.array([puntoInicio[0], puntoInicio[1]])
+
+    vertice = lambda i: p0+ dx*i*tan
+
+    i=1
+    #se crean cuadrados y triángulos para marcar la trayectoria
+    while i <= N:
+        p1 = vertice(i)
+        #si el cuadrado estaría fuera de la mesa, se rompe el ciclo
+        if p1[0]>3 or p1[0]<-3 or p1[1]>6 or p1[1]<-6:
+            break
+        p2 = vertice(i+1)
+        vertices += [p1[0]+normal[0]*0.025, p1[1]+normal[1]*0.025, 1, 1, 1]
+        vertices += [p1[0]-normal[0]*0.025, p1[1]-normal[1]*0.025, 1, 1, 1]
+        vertices += [p2[0]+normal[0]*0.025, p2[1]+normal[1]*0.025, 1, 1, 1]
+        vertices += [p2[0]-normal[0]*0.025, p2[1]-normal[1]*0.025, 1, 1, 1]
+        #ahora hacemos la punta de la flecha
+        vertices += [p2[0], p2[1], 1, 1, 1]
+        vertices += [vertice(i+2)[0], vertice(i+2)[1], 1, 1, 1]
+        vertices += [p2[0]+normal[0]*0.05, p2[1]+normal[1]*0.05, 1, 1, 1]
+        vertices += [p2[0]-normal[0]*0.05, p2[1]-normal[1]*0.05, 1, 1, 1]
+
+        indices += [8*i, 8*i+1, 8*i+3,
+                    8*i+3, 8*i+2, 8*i]
+        
+        indices += [8*i+4, 8*i+5, 8*i+6,
+                    8*i+4, 8*i+5, 8*i+7]
+
+        
+        i+=2
+
+    return bs.Shape(vertices, indices)
+
+def createGPULine(pipeline, puntoInicio, tan, N):
+    lineShape = createLineaPunteada(puntoInicio, tan, N)
+    gpuLine = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuLine)
+    gpuLine.fillBuffers(lineShape.vertices, lineShape.indices, GL_DYNAMIC_DRAW)
+    return gpuLine
+
+
+
