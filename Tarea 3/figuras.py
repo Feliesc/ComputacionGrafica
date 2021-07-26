@@ -4,6 +4,7 @@ import os.path
 from OpenGL.GL import *
 import grafica.basic_shapes as bs
 import grafica.easy_shaders as es
+import openmesh as om
 
 
 def createTextureNormalSphere(N):
@@ -252,9 +253,7 @@ def createLineaPunteada(puntoInicio, tan, N):
         indices += [8*i+4, 8*i+5, 8*i+6,
                     8*i+4, 8*i+5, 8*i+7]
 
-        
         i+=2
-
     return bs.Shape(vertices, indices)
 
 def createGPULine(pipeline, puntoInicio, tan, N):
@@ -264,5 +263,139 @@ def createGPULine(pipeline, puntoInicio, tan, N):
     gpuLine.fillBuffers(lineShape.vertices, lineShape.indices, GL_DYNAMIC_DRAW)
     return gpuLine
 
+from scipy.spatial import Delaunay
+
+def createMapaMesh(listaBolas):
+    grilla = np.mgrid[-3:3:12j, -7:7:28j]
+    X = grilla[0]
+    Y = grilla[1]
+    malla = om.PolyMesh()
+    vertices = []
+    i=0
+    while i < len(X):
+        j=0
+        while j < len(X[i]):
+            malla.add_vertex(np.array([X[i][j], Y[i][j], 0.0]))
+            vertice = [X[i][j], Y[i][j]]
+            vertices += [vertice]
+            j+=1
+        i+=1
+
+    triangulacion = Delaunay(vertices).simplices
+
+    vertexs = list(malla.vertices())
+    for triangulo in triangulacion:
+        malla.add_face(vertexs[triangulo[0]], vertexs[triangulo[1]], vertexs[triangulo[2]])
+    return malla
+
+def potencial(posPunto, listaBolas):
+        magnitud = 0
+        for bola in listaBolas:
+            if bola.enHoyo == False:
+                POS = bola.pos
+                masa = bola.mass
+                restaVectores = POS-posPunto
+                r = np.sqrt(restaVectores[0]**2 + restaVectores[1]**2)
+                magnitud += 10*masa/r
+            else:
+                magnitud += 0
+        return magnitud
 
 
+def getVertexesAndIndexes(malla, listaBolas):
+    faces = malla.faces()
+    vertices = []
+    i=0
+    while i < len(malla.points()): 
+        punto = malla.points()[i]
+        intensidadColor = potencial(punto, listaBolas)
+                            #coords                          #color       
+        vertices += punto.tolist()[0:2] + [intensidadColor/15, 0.2, (1-intensidadColor/15)]
+        i+=1
+    
+    indices = []
+
+    for face in faces:
+        # Obtenemos los vertices de la cara
+        face_indexes = malla.fv(face)
+        for vertex in face_indexes:
+            # Obtenemos el numero de indice y lo agregamos a la lista
+            indices += [vertex.idx()]
+    
+    return vertices, indices
+    
+def createGPUmapa(pipeline, listaBolas):
+    gpuShape = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuShape)
+    malla = createMapaMesh(listaBolas)
+    vertices, indices = getVertexesAndIndexes(malla, listaBolas)
+    gpuShape.fillBuffers(vertices, indices, GL_DYNAMIC_DRAW)
+    return gpuShape
+
+#rectangulo que tiene la textura que dice "Energía"
+def createTextRectangle():
+    vertices = [
+    #   positions    tex coords
+        0.5, -0.5,     0, 1,
+        2.5, -0.5,     1, 1,
+        2.5,  0.5,     1, 0,
+        0.5,  0.5,     0, 0]
+    indices = [
+        0, 1, 2,
+        2, 3, 0]
+    return bs.Shape(vertices, indices)
+
+def createGPUtext(pipeline):
+    textPath = os.path.join(texturesDirectory, "Energia.png")
+    textShape = createTextRectangle()
+
+    gpuText = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuText)
+    gpuText.texture = es.textureSimpleSetup(
+        textPath, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST)
+    gpuText.fillBuffers(textShape.vertices, textShape.indices, GL_STATIC_DRAW)
+    return gpuText
+
+#rectángulo con los colores del potencial
+def createPotencialRectangle():
+    vertices = [
+    #   positions        colors
+        -0.5, -1, 0.0,  0, 0.2, 1,
+         0.5, -1, 0.0,  0, 0.2, 1,
+         0.5,  1, 0.0,  1, 0.2, 0,
+        -0.5,  1, 0.0,  1, 0.2, 0]
+    indices = [
+        0, 1, 2,
+        2, 3, 0]
+    return bs.Shape(vertices, indices)
+
+def createGPUpotencialRectangle(pipeline):
+    backShape = createPotencialRectangle()
+    gpuBack = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuBack)
+    gpuBack.fillBuffers(backShape.vertices, backShape.indices, GL_STATIC_DRAW)
+    return gpuBack
+
+#rectángulo con la textura con los números del potencial
+def createTextPotencialRectangle():
+    vertices = [
+    #   positions    tex coords
+        0.5, -1,     0, 1,
+        1.28125, -1,     1, 1,
+        1.28125,  1,     1, 0,
+        0.5,  1,     0, 0]
+    indices = [
+        0, 1, 2,
+        2, 3, 0]
+    return bs.Shape(vertices, indices)
+
+def createGPUpotencialTex(pipeline):
+    textPath = os.path.join(texturesDirectory, "potencialNumeros.png")
+    textShape = createTextPotencialRectangle()
+
+    gpuText = es.GPUShape().initBuffers()
+    pipeline.setupVAO(gpuText)
+    gpuText.texture = es.textureSimpleSetup(
+        textPath, GL_REPEAT, GL_REPEAT, GL_NEAREST, GL_NEAREST)
+    gpuText.fillBuffers(textShape.vertices, textShape.indices, GL_STATIC_DRAW)
+    return gpuText

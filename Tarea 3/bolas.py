@@ -7,7 +7,6 @@ class bola:
         self.pos = np.array(pos)
         self.vel = np.array(vel)
         self.speed = np.linalg.norm(self.vel)
-        self.signosVelocidad = [0,0]#BORRAR SI NO USO F
         self.mass = mass
         self.shape = shape
         self.radio = radio
@@ -23,6 +22,7 @@ class bola:
         self.hermiteCurve = None #cada bola tiene una curva que descrive su trayectoria al caer al hoyo
         self.deltaHermite = 0
         self.indexHermite = 0
+        self.gravedad = 0
 
     #metodo que revisa la colisión entre la bola y el palo
     def cueCollision(self, cuePos, Energy, focusedBall, theta, dt):
@@ -55,6 +55,7 @@ class bola:
     
     #al chocar con el borde, invertimos el sentido de la velocidad y reducimos su magnitud
     def borderCollision(self):
+        #comprobar en eje x
         if self.pos[0]+self.radio>3 or self.pos[0]-self.radio<-3:
             self.vel[0] = -self.vel[0]
             if self.pos[0]+self.radio>3:
@@ -66,6 +67,7 @@ class bola:
             self.speed = 0.75*self.speed
             self.velAngular = self.speed/self.radio
 
+        #comprobar en eje y
         if self.pos[1]+self.radio>6 or self.pos[1]-self.radio<-6:
             self.vel[1] = -self.vel[1]
             if self.pos[1]+self.radio>6:
@@ -81,6 +83,8 @@ class bola:
     def colHole(self):
         #los puntos claves son (-3,6) (3,6) (-3,0) (3,0) (-3,-6) (3,-6)
         #hacemos una comparación para cada uno de los 6 hoyos
+        """cada vez que "colisiona" con un hoyo, se actualiza la variable self.enHoyo y 
+         se calcula la curva de Hermite, por la cual, se moverá la bola"""
         if np.linalg.norm(self.pos-np.array([-3,6.2,0]))<0.6+self.radio:
             self.enHoyo = True
             T1 = (self.pos-np.array([-3,6.2,0]))/np.linalg.norm(self.pos-np.array([-3,6.2,0]))
@@ -172,6 +176,8 @@ class bola:
             else:
                 if self.indexHermite == 3:
                     self.enJuego = False
+                    self.gravedad = 0
+                    self.speed = 0
 
                 self.deltaHermite = 0
                 self.indexHermite += 1
@@ -179,11 +185,15 @@ class bola:
 
     #hacemos algo parecido al método update pero se activa cuando G_Alta = True
     def updateG_Alta(self, t, deltaTime, listaBolas):
-        if self.enJuego == True:
+        """en este caso no calculamos el roce, ya que al ser constante, simplemente podríamos restarle una constante a la
+            aceleración de gravedad y el efecto sería similar. Además, no aporta mucho a lo que se quiere mostrar"""
+        #tampoco se calculará la rotación de las bolas
 
-            self.ballCollisionGravity(listaBolas)
-            self.borderCollision()
-            # RK4 integration
+        #solo actualizamos las bolas que no han entrado a un hoyo
+        if self.enHoyo == False:
+            self.ballCollisionGravity(listaBolas)   #se ven las colisiones entre bolas
+            self.borderCollision()                  #y la colisión con los bordes
+            # usamos RK4
             pos1 = self.pos
             vel1 = self.vel
             centroDeMasa, MASA = self.centroDeMasaYMASA(listaBolas)
@@ -193,38 +203,37 @@ class bola:
             k4 = self.velocity(0+deltaTime, pos1+deltaTime*k3, listaBolas)
 
             self.pos = pos1 + (deltaTime/6)*(k1+2*k2+2*k3+k4)
-            self.vel = vel1 + deltaTime*aceleracionGravedad(self.pos, MASA, centroDeMasa)
+            self.vel = vel1 + deltaTime*self.aceleracionGravedad(self.pos, MASA, centroDeMasa)
             
 
 
     def velocity(self, deltaTime, pos, listaBolas):
         centroDeMasa, MASA = self.centroDeMasaYMASA(listaBolas)
-        #ahora sacamos el potencial al que está sometido esta bola
+        #ahora sacamos la gravedad a la que está sometida esta bola
 
         vel1 = self.vel
-        K1 = aceleracionGravedad(pos, MASA, centroDeMasa)
-        K2 = aceleracionGravedad(pos+(deltaTime/2)*K1, MASA, centroDeMasa)
-        K3 = aceleracionGravedad(pos+(deltaTime/2)*K2, MASA, centroDeMasa)
-        K4 = aceleracionGravedad(pos+deltaTime*K3, MASA, centroDeMasa)
+        K1 = self.aceleracionGravedad(pos, MASA, centroDeMasa)
+        K2 = self.aceleracionGravedad(pos+(deltaTime/2)*K1, MASA, centroDeMasa)
+        K3 = self.aceleracionGravedad(pos+(deltaTime/2)*K2, MASA, centroDeMasa)
+        K4 = self.aceleracionGravedad(pos+deltaTime*K3, MASA, centroDeMasa)
 
         return vel1 + (deltaTime/6)*(K1+2*K2+2*K3+K4)
 
     def centroDeMasaYMASA(self, listaBolas):
         otrasBolas = listaBolas[0:self.ballIndex] + listaBolas[self.ballIndex+1:len(listaBolas)]
-        
-        if len(otrasBolas)>0:
-            centroDeMasa = np.array([0.0,0.0,0.0])
-            bolasEnJuego = 0
-            for bola in otrasBolas:
-                if bola.enJuego==True:
-                    centroDeMasa += bola.pos
-                    bolasEnJuego +=1
+        centroDeMasa = np.array([0.0,0.0,0.0])
+        bolasEnJuego = 0
+        for bola in otrasBolas:
+            if bola.enHoyo==False:
+                centroDeMasa += bola.pos
+                bolasEnJuego +=1
+        if bolasEnJuego>0:
             centroDeMasa /= bolasEnJuego
-                
             MASA = bolasEnJuego*self.mass #la suma de las masas de las otras bolas
         else:
-            centroDeMasa = self.pos
-            MASA = 0
+            #si solo hay una bola en juego, no hay "otro centro de Masa" tomando en cuenta las "otrasBolas"
+            centroDeMasa = None
+            MASA = None
         return centroDeMasa, MASA
 
     def ballCollisionGravity(self, listaBolas):
@@ -238,8 +247,8 @@ class bola:
                 rapidezInicial1 = self.speed
                 rapidezInicial2 = bola.speed
 
-                self.speed = ((1-self.C)*rapidezInicial1 + (1+self.C)*rapidezInicial2)/2
-                bola.speed = ((1-self.C)*rapidezInicial2 + (1+self.C)*rapidezInicial1)/2
+                self.speed = 0
+                bola.speed = 0
 
                 #la dirección de la velocidad está dada por el lugar donde se golpearon las bolas
                 restaPosNormalizado = np.array(restaPos)/np.linalg.norm(restaPos)
@@ -249,22 +258,24 @@ class bola:
                 direccion = np.array(restaPos)/norma
                 self.pos = self.pos + (epsilon/2)*direccion
                 bola.pos = bola.pos - (epsilon/2)*direccion
+    
+    def aceleracionGravedad(self, posCuerpo, masa, POS):
+        #si no hay un centro de masa que lo atraiga, se retorna un vector nulo
+        if masa==None and POS == None:
+            return np.array([0,0,0])
+        
+        restaVectores = POS-posCuerpo
+        r = np.linalg.norm(restaVectores)
+        magnitud = 10*masa/(r**2)
+        if magnitud>200:
+                magnitud = 0.0001
+        direccionNormalizada = restaVectores/r
+        self.gravedad = magnitud
+        return magnitud*direccionNormalizada
+
 
 
 ############################ FUNCIONES ÚTILES ###########################################################
-
-def aceleracionGravedad(posCuerpo, masa, POS):
-    restaVectores = POS-posCuerpo
-    r = np.linalg.norm(restaVectores)
-    magnitud = 10*masa/(r**2)
-    if magnitud>200:
-            magnitud = 0.0001
-    direccionNormalizada = restaVectores/r
-    return magnitud*direccionNormalizada
-
-
-
-
 
 
 def hermiteMatrix(P1, P2, T1, T2):
@@ -294,7 +305,13 @@ def evalCurve(M, N):
         
     return curve
 
-
+def finDelJuego(listaBolas):
+    finJuego = True
+    for bola in listaBolas:
+        #si se encuentra una bola que esté en juego, el juego no ha terminado (se retorna Falso)
+        if bola.enJuego == True:
+            return False
+    return finJuego
 
         
 

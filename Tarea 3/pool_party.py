@@ -44,6 +44,8 @@ class Controller:
         self.focusedBall = 0
         self.toggleCam = False
         self.G_Alta = False
+        self.cueActivo = True
+        self.R = 6
 
 
 # We will use the global controller as communication with the callback function
@@ -65,10 +67,10 @@ def on_key(window, key, scancode, action, mods):
         if controller.focusedBall == 16:
             controller.focusedBall = 0
     
-    elif (glfw.get_key(window, glfw.KEY_A) == glfw.PRESS) and controller.toggleCam == False:
+    elif (glfw.get_key(window, glfw.KEY_C) == glfw.PRESS) and controller.toggleCam == False:
         controller.toggleCam = True
 
-    elif (glfw.get_key(window, glfw.KEY_A) == glfw.PRESS) and controller.toggleCam == True:
+    elif (glfw.get_key(window, glfw.KEY_C) == glfw.PRESS) and controller.toggleCam == True:
         controller.toggleCam = False
 
     elif (glfw.get_key(window, glfw.KEY_G) == glfw.PRESS) and controller.G_Alta == False:
@@ -78,8 +80,8 @@ def on_key(window, key, scancode, action, mods):
         controller.G_Alta = False
         for bola in listaBolas:
             bola.speed = np.linalg.norm(bola.vel)
-            print(bola.speed)
-
+            bola.vel = bola.vel
+ 
     elif key == glfw.KEY_ESCAPE:
         glfw.set_window_should_close(window, True)
 
@@ -108,9 +110,11 @@ if __name__ == "__main__":
     texPhongPipeline = sh.SimpleTexturePhongShaderProgram()
     tex2Dpipeline = sh.tex2DShaderProgram()
     linePipeline = sh.lineShaderProgram()
+    mapPipeline = sh.mapShaderProgram()
+    guiPipeline = sh.texGuiShaderProgram()
 
     # Setting up the clear screen color
-    glClearColor(0.85, 0.85, 0.85, 1.0)
+    glClearColor(1, 1, 1, 0)
 
     # Habilitando las transparencias
     glEnable(GL_BLEND)
@@ -144,6 +148,11 @@ if __name__ == "__main__":
     gpuRectangles = fig.createGPURectangles(pipeline)
     #creamos la esfera que contiene el fondo
     gpuBackgroundShpere = fig.createGPUbigSphere(texPhongPipeline)
+    #creamos el quad con el texto
+    gpuTexto = fig.createGPUtext(guiPipeline)
+    #y hacemos los quads que muestran la info del potencial gravitatorio
+    gpuPotencialColors = fig.createGPUpotencialRectangle(pipeline)
+    gpuPotencialText = fig.createGPUpotencialTex(guiPipeline)
 
     t0 = glfw.get_time()
     camera_theta = np.pi
@@ -157,7 +166,7 @@ if __name__ == "__main__":
     Energy = 0
     maxCuePos = -3
     perfMonitor = pm.PerformanceMonitor(glfw.get_time(), 0.5)
-
+    finDelJuego = False #es verdadero cuando todas las pelotas entraron a un hoyo
 
     while not glfw.window_should_close(window):
         # Clearing the screen in both, color and depth
@@ -188,10 +197,10 @@ if __name__ == "__main__":
         at = np.array([bolaActual.pos[0], bolaActual.pos[1], bolaActual.pos[2]])
         AT = at
 
-        camX = at[0] + 5* np.sin(camera_theta)
-        camY = at[1] + 5* np.cos(camera_theta)
+        camX = at[0] + controller.R* np.sin(camera_theta)
+        camY = at[1] + controller.R* np.cos(camera_theta)
 
-        viewPos = np.array([camX, camY, 2])
+        viewPos = np.array([camX, camY, controller.R/2])
         eye = np.array([0,0,1])
 
         #si se presiona la cámara, cambia la transformación de vista según los siguientes vectores
@@ -203,11 +212,25 @@ if __name__ == "__main__":
         view = tr.lookAt(viewPos, AT, eye)
         projection = tr.perspective(60, float(width)/float(height), 0.1, 100)
 
+        #vemos si el juego terminó
+        finDelJuego = bolas.finDelJuego(listaBolas)
+
+        #si la bola entró al hoyo y estaba siendo enfocada, cambiamos la bola enfocada
+        if listaBolas[controller.focusedBall].enJuego == False and finDelJuego == False:
+            controller.focusedBall += 1
+            if controller.focusedBall == 16:
+                controller.focusedBall = 0
+        
+
         #cuando se mantiene la Z, se carga el palo (mientras más tiempo se esté manteniendo, le pega a la pelota con más fuerza)
-        if (glfw.get_key(window, glfw.KEY_Z) == glfw.PRESS):
+        if (glfw.get_key(window, glfw.KEY_Z) == glfw.PRESS) and controller.cueActivo == True and finDelJuego == False:
             if cuePos>maxCuePos:
                 cuePos -= 2*dt
             cueCharging = True
+            glUseProgram(guiPipeline.shaderProgram)
+            textTransform = tr.matmul([tr.translate(0.6,-0.6,0),tr.uniformScale(0.15),tr.shearing(0,np.sin(4*t0)/5,0,0,0,0)])
+            glUniformMatrix4fv(glGetUniformLocation(guiPipeline.shaderProgram, "transform"), 1, GL_TRUE, textTransform)
+            guiPipeline.drawCall(gpuTexto)
 
             glUseProgram(pipeline.shaderProgram)
             
@@ -244,12 +267,32 @@ if __name__ == "__main__":
                 cueHitting = False
                 cuePos = -0.3
         
+        #actualizamos cada bola (dependiendo de si hay gravedad alta o no)
         if controller.G_Alta == False:
             for bola in listaBolas:
                 bola.update(cuePos, Energy, listaBolas, dt, controller.focusedBall, camera_theta)
         else:
             for bola in listaBolas:
                 bola.updateG_Alta(t0, dt, listaBolas)
+            
+            #dibujamos el potencial
+            gpuMapaPotencial = fig.createGPUmapa(mapPipeline,listaBolas)
+            glUseProgram(mapPipeline.shaderProgram)
+            glUniformMatrix4fv(glGetUniformLocation(mapPipeline.shaderProgram, "view"), 1, GL_TRUE, view)
+            glUniformMatrix4fv(glGetUniformLocation(mapPipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+            glUniformMatrix4fv(glGetUniformLocation(mapPipeline.shaderProgram, "model"), 1, GL_TRUE, tr.uniformScale(1))
+            mapPipeline.drawCall(gpuMapaPotencial)
+
+            #y dibujamos la información
+            glUseProgram(guiPipeline.shaderProgram)
+            potencialTextTransform = tr.matmul([tr.translate(0.5,0.6,0),tr.uniformScale(0.35)])
+            glUniformMatrix4fv(glGetUniformLocation(guiPipeline.shaderProgram, "transform"), 1, GL_TRUE, potencialTextTransform)
+            guiPipeline.drawCall(gpuPotencialText)
+
+            glUseProgram(pipeline.shaderProgram)
+            backTransform = tr.matmul([tr.translate(0.6,0.6,0),tr.scale(0.2,0.35,0.35)])
+            glUniformMatrix4fv(glGetUniformLocation(pipeline.shaderProgram, "transform"), 1, GL_TRUE, backTransform)
+            pipeline.drawCall(gpuPotencialColors)
 
         # Telling OpenGL to use our shader program
         glUseProgram(texPhongPipeline.shaderProgram)
@@ -276,6 +319,7 @@ if __name__ == "__main__":
         texPhongPipeline.drawCall(gpuTable)
         texPhongPipeline.drawCall(gpuBackgroundShpere)
 
+        #dibujamos las bolas
         for i in range(len(listaBolas)):
             BOLA = listaBolas[i]
             #si la bola aún no ha caido en el hoyo, la dibujamos
@@ -286,29 +330,40 @@ if __name__ == "__main__":
                 glUniformMatrix4fv(glGetUniformLocation(texPhongPipeline.shaderProgram, "model"), 1, GL_TRUE, transform)
                 glUniform3f(glGetUniformLocation(texPhongPipeline.shaderProgram, "Ka"), 0.7, 0.7, 0.7)
                 texPhongPipeline.drawCall(bolaShape)
-            
-        cueTransform = tr.matmul([tr.translate(at[0],at[1],at[2]),tr.rotationZ(-camera_theta+np.pi),
-                                    tr.translate(0,cuePos,0.1),tr.rotationY(np.pi/24)])
-        glUniformMatrix4fv(glGetUniformLocation(texPhongPipeline.shaderProgram, "model"), 1, GL_TRUE, cueTransform)
-        texPhongPipeline.drawCall(gpuCue)
-
-        #ahora dibujamos la sombra para cada bola
-        glUseProgram(tex2Dpipeline.shaderProgram)
-        glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "view"), 1, GL_TRUE, view)
-        glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
         
-        for i in range(len(listaBolas)):
-            BOLA = listaBolas[i]
-            #si la bola aún no ha caido en el hoyo, dibujamos su sombra
-            if BOLA.enHoyo == False:
-                POS = BOLA.pos
-                """calculamos "deltaSombra" para que la sombra se mueva en función de en qué parte de la mesa
-                    se encuentra la pelota. Esto para que de la impresión de que la sombra se mueve según la luz que está al
-                    centro de la mesa"""
-                deltaSombra = [0.05*POS[0]/3,0.05*POS[1]/6]
-                transform = tr.translate(POS[0]+deltaSombra[0],POS[1]+deltaSombra[1],0)
-                glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "model"), 1, GL_TRUE, transform)
-                tex2Dpipeline.drawCall(gpuShadow)
+        #comprobamos si hay alguna bola que se sigue moviendo
+        bolasMoviendose = False
+        for bola in listaBolas:
+            if bola.speed > 0 and bola.enHoyo == False:
+                bolasMoviendose=True
+                break
+        if bolasMoviendose==False and controller.G_Alta==False and finDelJuego == False:
+            controller.cueActivo = True
+            cueTransform = tr.matmul([tr.translate(at[0],at[1],at[2]),tr.rotationZ(-camera_theta+np.pi),
+                                        tr.translate(0,cuePos,0.1),tr.rotationY(np.pi/24)])
+            glUniformMatrix4fv(glGetUniformLocation(texPhongPipeline.shaderProgram, "model"), 1, GL_TRUE, cueTransform)
+            texPhongPipeline.drawCall(gpuCue)
+        else:
+            controller.cueActivo = False
+
+        #ahora dibujamos la sombra para cada bola (solo si no está activado el mapa de gravedad)
+        if controller.G_Alta == False:
+            glUseProgram(tex2Dpipeline.shaderProgram)
+            glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "view"), 1, GL_TRUE, view)
+            glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "projection"), 1, GL_TRUE, projection)
+            
+            for i in range(len(listaBolas)):
+                BOLA = listaBolas[i]
+                #si la bola aún no ha caido en el hoyo, dibujamos su sombra
+                if BOLA.enHoyo == False:
+                    POS = BOLA.pos
+                    """calculamos "deltaSombra" para que la sombra se mueva en función de en qué parte de la mesa
+                        se encuentra la pelota. Esto para que de la impresión de que la sombra se mueve según la luz que está al
+                        centro de la mesa"""
+                    deltaSombra = [0.05*POS[0]/3,0.05*POS[1]/6]
+                    transform = tr.translate(POS[0]+deltaSombra[0],POS[1]+deltaSombra[1],0)
+                    glUniformMatrix4fv(glGetUniformLocation(tex2Dpipeline.shaderProgram, "model"), 1, GL_TRUE, transform)
+                    tex2Dpipeline.drawCall(gpuShadow)
         
         # Measuring performance
         perfMonitor.update(glfw.get_time())
