@@ -4,13 +4,10 @@ from meshesYmodelos import gpuBoat, gpuCilinder, gpuSphere
 import numpy as np
 
 
-def createBoatNode(pipeline, position):
+def createBoatNode(pipeline):
     gpuboat = gpuBoat(pipeline)
     gpuBodyOrArm = gpuCilinder(pipeline, 200/255, 80/255, 0)
     gpuHead = gpuSphere(pipeline)
-    x=position[0]
-    y=position[1]
-    z=position[2]
 
     BoatNode = sg.SceneGraphNode("Bote")
     BoatNode.transform = tr.matmul([tr.translate(0,0.75,0),tr.rotationX(np.pi/2)])

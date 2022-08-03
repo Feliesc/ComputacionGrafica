@@ -1,8 +1,4 @@
 # coding=utf-8
-"""
-Ejercicio 9 - Felipe Escárate
-Recorriendo una isosuperficie
-"""
 
 import glfw
 from OpenGL.GL import *
@@ -99,7 +95,7 @@ if __name__ == "__main__":
     #creamos el mar 
     gpuSea = gpuSea(seaPipeline)
     # Se crea el bote
-    boatNode = mj.createBoatNode(gouraudPipeline, [0,0,0])
+    boatNode = mj.createBoatNode(gouraudPipeline)
     #creamos el obstaculo
     gpuTire = gpuObstaculo(gouraudPipeline)
     #creamos un nodo que contendrá los obstaculos

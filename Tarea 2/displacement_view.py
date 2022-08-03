@@ -3,7 +3,6 @@
 
 import glfw
 from OpenGL.GL import *
-import numpy as np
 import os.path
 
 import grafica.transformations as tr
