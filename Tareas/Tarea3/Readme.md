@@ -1,3 +1,12 @@
+### Instrucciones de ejecución
+`python pool_party.py config.json`. 
+Además, durante el programa se utilizan las teclas: Derecha e Izquierda para moverse alrededor de la pelota enfocada, espacio para ver solo los arcos de las figuras,
+Z para “cargar” el palo de billar, X para cambiar la pelota a la cual se está enfocando y 1 para cambiar de cámara. 
+
+**Observación:** Es necesaria la librería openmesh.
+
+### Explicación de la implementación
+
 Para gran parte de los aspectos realizados en la tarea se hizo uso del programa Blender, partiendo por algunas mallas geométricas, como lo son la mesa de pool,
 el palo, y los focos que se ven en el fondo. La creación de la mesa de pool se hizo deformando un cubo, agregándole caras y realizando distintas operaciones disponibles
 en el programa. Para crear los orificios de la mesa de pool, fue necesario importar el add-on “Bool Tools” con la finalidad de usar la operación binaria de “diferencia” entre unos cilindros y la mesa anteriormente modelada.
