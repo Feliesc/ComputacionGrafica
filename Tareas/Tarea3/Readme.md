@@ -1,13 +1,15 @@
 Para gran parte de los aspectos realizados en la tarea se hizo uso del programa Blender, partiendo por algunas mallas geométricas, como lo son la mesa de pool,
 el palo, y los focos que se ven en el fondo. La creación de la mesa de pool se hizo deformando un cubo, agregándole caras y realizando distintas operaciones disponibles
-en el programa. Para crear los orificios de la mesa de pool, fue necesario importar el add-on “Bool Tools” con la finalidad de usar la operación binaria de “diferencia”
-entre unos cilindros y la mesa anteriormente modelada.
+en el programa. Para crear los orificios de la mesa de pool, fue necesario importar el add-on “Bool Tools” con la finalidad de usar la operación binaria de “diferencia” entre unos cilindros y la mesa anteriormente modelada.
+
+![imagen](https://user-images.githubusercontent.com/80856926/194471735-70e9bbaa-20fb-4794-9d19-72a77d172f97.png)
 
 
 La iluminación global, fue realizada utilizando el Blender. Para esto se colocaron algunos de los objetos anteriormente mencionados, y se utilizó el motor de renderizado
 Cycles, el cual permite el uso de Path tracing. Utilizando la iluminación global obtenida, se generó una “High Dinamic Range Image” (HDRI) en formato .png. 
 Para la renderización de esta imagen, se movió la cámara al centro de la escena y se configuró como se muestra a continuación:
 
+![imagen](https://user-images.githubusercontent.com/80856926/194471699-aa0fff0a-5be4-4e7e-8fa0-a07bde501657.png)
 
 
 Este archivo, se utilizaría posteriormente como textura, la cual, al ser mapeada al interior de una esfera, generaría una “skybox”. Por otro lado, las texturas
@@ -65,12 +67,16 @@ similar a ballCollision, con la diferencia que, en vez de cambiar la velocidad
 de la pelota, esta cambia su trayectoria a una descrita por una curva de 
 Hermite (para entrar al agujero).
 
+![imagen](https://user-images.githubusercontent.com/80856926/194471761-1abf52cf-01fe-4d5a-b32a-84bfa69032c3.png)
+
+
 Durante la trayectoria de las bolas en la mesa de pool, estas son afectadas por el roce, por lo cual, se tiene 
 que: $F_{roce} = \mu \cdot Normal$ y como la superficie es plana y paralela al suelo, $Normal = g$ (con $g>0$). 
 Entonces, se tiene que la aceleración provocada por el roce estaría dada por: $\mu \cdot g$, de tal forma, que, en 
 cada iteración, se le resta $\mu \cdot g \cdot dt$ a la rapidez (método de Euler).
 Luego, para obtener la rotación de cada bola, se usa su rapidez angular, la cual es calculada como:
 
+$$rapidezAngular = \omega = \frac{rapidez}{radio} = \frac{v}{r}$$
 
 Por otro lado, se implementó un aumento en la constante de gravitación universal, lo cual se activa 
 presionando la tecla “G”. Con este aumento, se toma 𝑐𝑜𝑛𝑠𝑡𝑎𝑛𝑡𝑒𝐷𝑒𝐺𝑟𝑎𝑣𝑖𝑡𝑎𝑐𝑖ó𝑛𝑈𝑛𝑖𝑣𝑒𝑟𝑠𝑎𝑙 = 10, de tal 
@@ -86,4 +92,8 @@ potencial gravitatorio ejercido por las pelotas, y se pasó esta información co
 la magnitud del potencial en cada punto de la grilla y se dividió para que tomara valores entre 0 y 1, de 
 tal forma que si la magnitud del potencial era máxima el punto de la grilla tomaba un color rojo y si era 
 mínima tomaba un color azulado. Con esto se podría observar el campo del potencial en tiempo real.
+
+
+![imagen](https://user-images.githubusercontent.com/80856926/194471910-fc17fa1b-05b8-418e-8911-71926e491209.png)
+
 
