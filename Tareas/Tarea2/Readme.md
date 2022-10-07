@@ -1,3 +1,13 @@
+### Instrucciones de ejecución
+El primer programa se ejecuta utilizando `python displacement_view.py`
+
+mientras que el segundo con `python water_slide.py N V` siendo N la cantidad de obstáculos generados y V la velocidad del bote (Se recomienda N = 8 y V = 4). 
+
+Además, durante el segundo programa se utilizan las teclas: derecha 
+e izquierda para moverse, espacio para ver los polígonos utilizados, F para mover los brazos de la persona 
+y V para cambiar la vista de la cámara.
+
+
 ### Curvas: 
 Para crear el tobogán pedido, se creó una spline de Catmull-Rom, hecha con 20 puntos de control, los cuales fueron copiados para crear otras 8 splines similares, 
 que describieran la forma del tobogán. Para que las splines no se cruzaran entre ellas y estuvieran perfectamente separadas, se tuvo que realizar un cálculo de 
